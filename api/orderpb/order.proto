@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package orderpb;
 
-option go_package = "github.com/baobao233/gorder/internal/common/genproto/orderpb";
+option go_package = "github.com/baobao233/gorder/common/genproto/orderpb";
 
 import "google/protobuf/empty.proto";
 

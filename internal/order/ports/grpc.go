@@ -3,16 +3,19 @@ package ports
 import (
 	"context"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
+	"github.com/baobao233/gorder/order/app"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 /*
 为了提供 grpc 服务，实现OrderServiceServer接口
 */
-type GRPCServer struct{}
+type GRPCServer struct {
+	app app.Application
+}
 
-func NewGRPCServer() *GRPCServer {
-	return &GRPCServer{}
+func NewGRPCServer(app app.Application) *GRPCServer {
+	return &GRPCServer{app: app}
 }
 
 func (G GRPCServer) CreateOrder(ctx context.Context, request *orderpb.CreateOrderRequest) (*emptypb.Empty, error) {

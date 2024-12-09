@@ -22,6 +22,12 @@
 go.work
 go.work.sum
 
+.gobincache/
+
 # env file
 .env
+.idea
+.DS_Store
+**/tmp/
+**/bin/
 

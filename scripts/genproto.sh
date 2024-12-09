@@ -31,7 +31,7 @@ function pb_files {
 
 # log_warning 和 run 都是 lib.sh 中封装好的函数
 # 定义生成的 proto 文件放在哪儿
-function gen_for_moudle() {
+function gen_for_module() {
     local go_out="internal/common/genproto"
     if [ -d "$go_out" ]; then
         log_warning "found existing $go_out, cleaning all files under it"
@@ -63,4 +63,4 @@ function gen_for_moudle() {
 
 echo "directories containing proto to be built: $(dirs)"
 echo "found pb_files: $(pb_files)"
-gen_for_moudle
+gen_for_module
