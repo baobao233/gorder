@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/baobao233/gorder/common/config"
+	"github.com/baobao233/gorder/common/discovery"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/baobao233/gorder/common/server"
 	"github.com/baobao233/gorder/order/ports"
@@ -27,6 +28,15 @@ func main() {
 
 	application, cleanup := service.NewApplication(ctx)
 	defer cleanup() // 主函数退出时才把连接关闭
+
+	// 注册到 consul 中
+	deregisterFunc, err := discovery.RegisterToConsul(ctx, serviceName)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer func() {
+		_ = deregisterFunc()
+	}()
 
 	// 启动协程防止阻塞
 	go server.RunGRPCServer(serviceName, func(server *grpc.Server) {
