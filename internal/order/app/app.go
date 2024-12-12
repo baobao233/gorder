@@ -1,6 +1,9 @@
 package app
 
-import "github.com/baobao233/gorder/order/app/query"
+import (
+	"github.com/baobao233/gorder/order/app/command"
+	"github.com/baobao233/gorder/order/app/query"
+)
 
 type Application struct {
 	Commands Commands
@@ -8,8 +11,10 @@ type Application struct {
 }
 
 type Commands struct {
+	CreateOrder command.CreateOrderHandler
+	UpdateOrder command.UpdateOrderHandler
 }
 
 type Queries struct {
-	GetCustomOrder query.GetCustomerOrderHandler
+	GetCustomerOrder query.GetCustomerOrderHandler
 }

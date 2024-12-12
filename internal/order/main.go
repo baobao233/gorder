@@ -25,7 +25,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	application := service.NewApplication(ctx)
+	application, cleanup := service.NewApplication(ctx)
+	defer cleanup() // 主函数退出时才把连接关闭
+
 	// 启动协程防止阻塞
 	go server.RunGRPCServer(serviceName, func(server *grpc.Server) {
 		svc := ports.NewGRPCServer(application) // 注入 app，类似于胶水层将 handler 和数据库之类的粘合

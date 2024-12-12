@@ -20,6 +20,24 @@ var stub = map[string]*orderpb.Item{
 		Quantity: 1000,
 		PriceID:  "stub_item_price_id",
 	},
+	"item1": {
+		ID:       "item1",
+		Name:     "stub_item1",
+		Quantity: 1000,
+		PriceID:  "stub_item1_price_id",
+	},
+	"item2": {
+		ID:       "item2",
+		Name:     "stub_item2",
+		Quantity: 1000,
+		PriceID:  "stub_item2_price_id",
+	},
+	"item3": {
+		ID:       "item3",
+		Name:     "stub_item3",
+		Quantity: 1000,
+		PriceID:  "stub_item3_price_id",
+	},
 }
 
 func NewMemoryStockRepository() *MemoryStockRepository {
@@ -31,7 +49,7 @@ func NewMemoryStockRepository() *MemoryStockRepository {
 
 func (m MemoryStockRepository) GetItems(ctx context.Context, ids []string) ([]*orderpb.Item, error) {
 	m.lock.RLock()
-	defer m.lock.Unlock()
+	defer m.lock.RUnlock()
 
 	var (
 		res     []*orderpb.Item

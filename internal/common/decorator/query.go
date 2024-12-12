@@ -8,7 +8,7 @@ import (
 // QueryHandler defines a generic type that receives a Query Q,
 // and returns a result R
 // 对于订单来说我们需要实现这个 handle 方法， 对于不同的 query中不同的参数封装成一个结构体，传入到 Q 中，这样我们还能只能返回啥然后传给 R
-// 这样我们只需要 foucus 查询什么，返回什么，而不是需要关注具体的实现
+// 这样我们只需要 focus 查询什么，返回什么，而不是需要关注具体的实现
 type QueryHandler[Q, R any] interface {
 	Handle(ctx context.Context, query Q) (R, error)
 }
