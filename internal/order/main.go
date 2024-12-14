@@ -5,6 +5,7 @@ import (
 	"github.com/baobao233/gorder/common/config"
 	"github.com/baobao233/gorder/common/discovery"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
+	"github.com/baobao233/gorder/common/logging"
 	"github.com/baobao233/gorder/common/server"
 	"github.com/baobao233/gorder/order/ports"
 	"github.com/baobao233/gorder/order/service"
@@ -15,6 +16,7 @@ import (
 )
 
 func init() {
+	logging.Init()
 	if err := config.NewViperConfig(); err != nil {
 		logrus.Fatal(err)
 	}

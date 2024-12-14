@@ -2,7 +2,9 @@ package client
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/discovery"
 	"github.com/baobao233/gorder/common/genproto/stockpb"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -10,7 +12,16 @@ import (
 
 // NewStockGRPCClient 封装一层 NewStockServiceClient
 func NewStockGRPCClient(ctx context.Context) (client stockpb.StockServiceClient, close func() error, err error) {
-	grpcAddr := viper.GetString("stock.grpc-addr")
+	// 从 consul 中 discover 可用的stockGRPC 的地址，而不是直接绑定固定的 stockGRPC 地址
+	grpcAddr, err := discovery.GetServiceAddr(ctx, viper.GetString("stock.service-name"))
+	if err != nil {
+		return nil, func() error {
+			return nil
+		}, err
+	}
+	if grpcAddr == "" {
+		logrus.Warn("empty grpc addr for stock grpc")
+	}
 	opts, err := grpcDialOpts(grpcAddr)
 	if err != nil {
 		return nil, func() error { return nil }, err

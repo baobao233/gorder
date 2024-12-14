@@ -1,5 +1,8 @@
 fallback-grpc-addr: 127.0.0.1:3030
 
+consul:
+  addr: 127.0.0.1:8500
+
 order:
   service-name: order
   server-to-run: http
@@ -11,3 +14,17 @@ stock:
   server-to-run: grpc
   http-addr: 127.0.0.1:8283
   grpc-addr: 127.0.0.1:5003
+
+payment:
+  service-name: payment
+  server-to-run: http
+  http-addr: 127.0.0.1:8284
+  grpc-addr: 127.0.0.1:5004
+
+rabbitmq:
+  user: guest
+  password: guest
+  host: 127.0.0.1
+  port: 5672
+
+stripe-key: "${STRIPE_KEY}"
