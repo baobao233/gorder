@@ -70,7 +70,7 @@ func (m *MemoryOrderRepository) Update(ctx context.Context, o *domain.Order, upd
 	for i, order := range m.store {
 		if order.ID == o.ID && order.CustomerID == o.CustomerID {
 			found = true
-			updateOrder, err := updateFunc(ctx, order)
+			updateOrder, err := updateFunc(ctx, o)
 			if err != nil {
 				return err
 			}

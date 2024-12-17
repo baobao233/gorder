@@ -25,7 +25,7 @@ func SetFormatter(logger *logrus.Logger) {
 		},
 	})
 	// 如果是在本地模式中，强制格式化
-	if isLocal, _ := strconv.ParseBool(os.Getenv("LOCAL_ENV")); !isLocal {
+	if isLocal, _ := strconv.ParseBool(os.Getenv("LOCAL_ENV")); isLocal {
 		logrus.SetFormatter(&prefixed.TextFormatter{
 			ForceColors: true,
 		})

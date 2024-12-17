@@ -48,6 +48,7 @@ func main() {
 	})
 
 	server.RunHTTPServer(serviceName, func(router *gin.Engine) {
+		router.StaticFile("/success", "../../public/success.html")
 		// 传入的第二个参数是需要我们自己写的，也就是服务接口的具体实现是什么
 		ports.RegisterHandlersWithOptions(router, HTTPServer{
 			app: application, // 不要忘记 HTTP 也是需要 app 注入的

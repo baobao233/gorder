@@ -1,15 +1,24 @@
 package consumer
 
 import (
+	"context"
+	"encoding/json"
 	"github.com/baobao233/gorder/common/broker"
+	"github.com/baobao233/gorder/common/genproto/orderpb"
+	"github.com/baobao233/gorder/payment/app"
+	"github.com/baobao233/gorder/payment/app/command"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
 )
 
-type Consumer struct{}
+type Consumer struct {
+	app app.Application
+}
 
-func NewConsumer() *Consumer {
-	return &Consumer{}
+func NewConsumer(app app.Application) *Consumer {
+	return &Consumer{
+		app: app,
+	}
 }
 
 func (c *Consumer) Listen(ch *amqp.Channel) {
@@ -39,5 +48,20 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 
 func (c *Consumer) handleMessage(msg amqp.Delivery, q amqp.Queue) {
 	logrus.Infof("Payment recieve a message from %s, msg=%s", q.Name, string(msg.Body))
+	o := &orderpb.Order{}
+	if err := json.Unmarshal(msg.Body, o); err != nil {
+		logrus.Warnf("failed to unmarshall msg to order, err=%v", err)
+		_ = msg.Nack(false, false)
+		return
+	}
+	_, err := c.app.Command.CreatePayment.Handle(context.TODO(), command.CreatePayment{Order: o})
+	if err != nil {
+		// TODO: Retry
+		logrus.Warnf("failed to create order, err=%v", err)
+		_ = msg.Nack(false, false)
+		return
+	}
+
 	_ = msg.Ack(false) // 回复生产者有没有接收到消息
+	logrus.Info("consume success")
 }
