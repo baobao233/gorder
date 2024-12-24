@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/baobao233/gorder/order/convertor"
+	"github.com/baobao233/gorder/order/entity"
+	"go.opentelemetry.io/otel"
+
 	"github.com/baobao233/gorder/common/broker"
 	"github.com/baobao233/gorder/common/decorator"
-	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/baobao233/gorder/order/app/query"
 	domain "github.com/baobao233/gorder/order/domain/order"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -15,7 +19,7 @@ import (
 
 type CreateOrder struct {
 	CustomerID string
-	Items      []*orderpb.ItemWithQuantity
+	Items      []*entity.ItemWithQuantity
 }
 
 type CreateOrderResult struct {
@@ -57,6 +61,17 @@ func NewCreateOrderHandler(
 }
 
 func (c createOrderCommand) Handle(ctx context.Context, cmd CreateOrder) (*CreateOrderResult, error) {
+	// 如果没有异常，就声明一个 queue
+	q, err := c.channel.QueueDeclare(broker.EventOrderCreated, true, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	t := otel.Tracer("rabbitmq")
+	ctx, span := t.Start(ctx, fmt.Sprintf("rabbitmq.%s.publish", q.Name)) // Create a span to track validate() and PublishWithContext()
+	defer span.End()
+
+	// 调用 stockGRPC 校验
 	validItems, err := c.validate(ctx, cmd.Items)
 	if err != nil {
 		return nil, err
@@ -69,13 +84,8 @@ func (c createOrderCommand) Handle(ctx context.Context, cmd CreateOrder) (*Creat
 		return nil, err
 	}
 
-	// 如果没有异常，就声明一个 queue
-	q, err := c.channel.QueueDeclare(broker.EventOrderCreated, true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	marshalledOrder, err := json.Marshal(o) // 将 order 变成一个 json 传入到 queue 中
+	marshalledOrder, err := json.Marshal(o)     // 将 order 变成一个 json 传入到 queue 中
+	header := broker.InjectRabbitMQHeaders(ctx) // inject context
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +93,7 @@ func (c createOrderCommand) Handle(ctx context.Context, cmd CreateOrder) (*Creat
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent, // 持久化这个消息
 		Body:         marshalledOrder,
+		Headers:      header,
 	}) // 发送信息到 queue 中
 	if err != nil {
 		return nil, err
@@ -91,27 +102,27 @@ func (c createOrderCommand) Handle(ctx context.Context, cmd CreateOrder) (*Creat
 	return &CreateOrderResult{OrderID: o.ID}, nil
 }
 
-func (c createOrderCommand) validate(ctx context.Context, items []*orderpb.ItemWithQuantity) ([]*orderpb.Item, error) {
+func (c createOrderCommand) validate(ctx context.Context, items []*entity.ItemWithQuantity) ([]*entity.Item, error) {
 	if len(items) == 0 {
 		return nil, errors.New("must have at least 1 item")
 	}
-	items = packItems(items) // 合并同类型的 item
-	resp, err := c.stockGRPC.CheckIfItemsInStock(ctx, items)
+	items = packItems(items)                                                                                            // 合并同类型的 item
+	resp, err := c.stockGRPC.CheckIfItemsInStock(ctx, convertor.NewItemWithQuantityConvertor().EntitiesToProtos(items)) // 进入到 grpc 时候需要转换一层
 	if err != nil {
 		return nil, err
 	}
-	return resp.Items, nil
+	return convertor.NewItemConvertor().ProtosToEntities(resp.Items), nil
 }
 
-func packItems(items []*orderpb.ItemWithQuantity) []*orderpb.ItemWithQuantity {
+func packItems(items []*entity.ItemWithQuantity) []*entity.ItemWithQuantity {
 	merged := make(map[string]int32)
 	for _, item := range items {
 		merged[item.ID] += item.Quantity
 	}
 
-	var res []*orderpb.ItemWithQuantity
+	var res []*entity.ItemWithQuantity
 	for id, quantity := range merged {
-		res = append(res, &orderpb.ItemWithQuantity{
+		res = append(res, &entity.ItemWithQuantity{
 			ID:       id,
 			Quantity: quantity,
 		})

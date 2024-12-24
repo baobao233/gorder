@@ -3,6 +3,9 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"go.opentelemetry.io/otel"
+
 	"github.com/baobao233/gorder/common/broker"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/baobao233/gorder/payment/app"
@@ -26,6 +29,7 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+
 	// 消费消息, msg就是具体的 message
 	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
@@ -48,13 +52,19 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 
 func (c *Consumer) handleMessage(msg amqp.Delivery, q amqp.Queue) {
 	logrus.Infof("Payment recieve a message from %s, msg=%s", q.Name, string(msg.Body))
+	// extract span
+	ctx := broker.ExtractRabbitMQHeaders(context.Background(), msg.Headers)
+	t := otel.Tracer("rabbitmq")
+	_, span := t.Start(ctx, fmt.Sprintf("rabbitmq.%s.consume", q.Name))
+	defer span.End()
+
 	o := &orderpb.Order{}
 	if err := json.Unmarshal(msg.Body, o); err != nil {
 		logrus.Warnf("failed to unmarshall msg to order, err=%v", err)
 		_ = msg.Nack(false, false)
 		return
 	}
-	_, err := c.app.Command.CreatePayment.Handle(context.TODO(), command.CreatePayment{Order: o})
+	_, err := c.app.Command.CreatePayment.Handle(ctx, command.CreatePayment{Order: o})
 	if err != nil {
 		// TODO: Retry
 		logrus.Warnf("failed to create order, err=%v", err)
@@ -62,6 +72,7 @@ func (c *Consumer) handleMessage(msg amqp.Delivery, q amqp.Queue) {
 		return
 	}
 
+	span.AddEvent("payment.created")
 	_ = msg.Ack(false) // 回复生产者有没有接收到消息
 	logrus.Info("consume success")
 }

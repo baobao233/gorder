@@ -3,6 +3,9 @@ package processor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/baobao233/gorder/common/tracing"
+
 	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
@@ -20,11 +23,15 @@ func NewStripeProcessor(apiKey string) *StripeProcessor {
 	return &StripeProcessor{apiKey: apiKey}
 }
 
-var (
+const (
 	successURL = "http://localhost:8282/success"
 )
 
 func (s StripeProcessor) CreatePaymentLink(ctx context.Context, order *orderpb.Order) (string, error) {
+	// 使用全局的 tracer，不然重新定义 tracer 的话会把同一条链路中的别的 tracer 覆盖掉
+	_, span := tracing.Start(ctx, "stripe_processor.create_payment_link")
+	defer span.End()
+
 	var items []*stripe.CheckoutSessionLineItemParams
 	for _, item := range order.Items {
 		items = append(items, &stripe.CheckoutSessionLineItemParams{
@@ -34,16 +41,18 @@ func (s StripeProcessor) CreatePaymentLink(ctx context.Context, order *orderpb.O
 	}
 	marshalledItems, _ := json.Marshal(order.Items)
 	metaData := map[string]string{
-		"orderID":    order.ID,
-		"customerID": order.CustomerID,
-		"status":     order.Status,
-		"items":      string(marshalledItems),
+		"orderID":     order.ID,
+		"customerID":  order.CustomerID,
+		"status":      order.Status,
+		"items":       string(marshalledItems),
+		"paymentLink": order.PaymentLink,
 	}
+
 	params := &stripe.CheckoutSessionParams{
 		Metadata:   metaData,
 		LineItems:  items,
 		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
-		SuccessURL: stripe.String(successURL), // 支付成功后跳转的链接
+		SuccessURL: stripe.String(fmt.Sprintf("%s?customerID=%s&orderID=%s", successURL, order.CustomerID, order.ID)), // 支付成功后跳转的链接
 	}
 	result, err := session.New(params)
 	if err != nil {

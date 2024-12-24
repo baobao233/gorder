@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/sirupsen/logrus"
 )
 
 type Registry struct {

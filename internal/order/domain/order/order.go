@@ -1,20 +1,24 @@
 package order
 
 import (
-	"github.com/baobao233/gorder/common/genproto/orderpb"
+	"fmt"
+	"github.com/baobao233/gorder/order/entity"
+
 	"github.com/pkg/errors"
+	"github.com/stripe/stripe-go/v81"
 )
 
+// Order Aggregate
 type Order struct {
 	ID          string
 	CustomerID  string
 	Status      string
 	PaymentLink string
-	Items       []*orderpb.Item
+	Items       []*entity.Item
 }
 
 // NewOrder 将 orderpb 中的 order 转化成在代码中流通的 order
-func NewOrder(id, customerID, status, paymentLink string, items []*orderpb.Item) (*Order, error) {
+func NewOrder(id, customerID, status, paymentLink string, items []*entity.Item) (*Order, error) {
 	if id == "" {
 		return nil, errors.New("empty id")
 	}
@@ -37,12 +41,9 @@ func NewOrder(id, customerID, status, paymentLink string, items []*orderpb.Item)
 	}, nil
 }
 
-func (o *Order) ToProto() *orderpb.Order {
-	return &orderpb.Order{
-		ID:          o.ID,
-		CustomerID:  o.CustomerID,
-		Status:      o.Status,
-		Items:       o.Items,
-		PaymentLink: o.PaymentLink,
+func (o *Order) IsPaid() error {
+	if o.Status == string(stripe.CheckoutSessionPaymentStatusPaid) {
+		return nil
 	}
+	return fmt.Errorf("order status not paid, order id= %s, order status = %s", o.ID, o.Status)
 }

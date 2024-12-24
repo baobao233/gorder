@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/tracing"
+
+	"github.com/baobao233/gorder/common/broker"
 	"github.com/baobao233/gorder/common/config"
 	"github.com/baobao233/gorder/common/discovery"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/baobao233/gorder/common/logging"
 	"github.com/baobao233/gorder/common/server"
+	"github.com/baobao233/gorder/order/infrastructure/consumer"
 	"github.com/baobao233/gorder/order/ports"
 	"github.com/baobao233/gorder/order/service"
 	"github.com/gin-gonic/gin"
@@ -28,8 +32,27 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	shutdown, err := tracing.InitJaeger(viper.GetString("jaeger.url"), serviceName)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer shutdown(ctx)
+
 	application, cleanup := service.NewApplication(ctx)
 	defer cleanup() // 主函数退出时才把连接关闭
+	// 初始化消息队列
+	ch, closeConn := broker.Connect(
+		viper.GetString("rabbitmq.user"),
+		viper.GetString("rabbitmq.password"),
+		viper.GetString("rabbitmq.host"),
+		viper.GetString("rabbitmq.port"),
+	)
+	defer func() {
+		_ = closeConn()
+		_ = ch.Close()
+	}()
+
+	go consumer.NewConsumer(application).Listen(ch)
 
 	// 注册到 consul 中
 	deregisterFunc, err := discovery.RegisterToConsul(ctx, serviceName)

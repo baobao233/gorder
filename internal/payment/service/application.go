@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	grpcClient "github.com/baobao233/gorder/common/client"
 	"github.com/baobao233/gorder/common/metrics"
 	"github.com/baobao233/gorder/payment/adaptaters"
@@ -18,7 +19,7 @@ func NewApplication(ctx context.Context) (app.Application, func()) {
 	if err != nil {
 		panic(err)
 	}
-	orderGRPC := adaptaters.NewOrderGrpc(orderClient)
+	orderGRPC := adaptaters.NewOrderGRPC(orderClient)
 	// memoryProcessor := processor.NewInMemProcessor()
 	stripeProcessor := processor.NewStripeProcessor(viper.GetString("stripe-key"))
 	return newApplication(ctx, orderGRPC, stripeProcessor), func() {
@@ -27,12 +28,12 @@ func NewApplication(ctx context.Context) (app.Application, func()) {
 }
 
 // 都依赖于接口，因此参数应该是接口
-func newApplication(ctx context.Context, grpc command.OrderService, memoryProcessor domain.Processor) app.Application {
+func newApplication(_ context.Context, grpc command.OrderService, processor domain.Processor) app.Application {
 	logger := logrus.NewEntry(logrus.StandardLogger())
 	metricsClient := metrics.TodoMetrics{}
 	return app.Application{
 		Command: app.Commands{
-			CreatePayment: command.NewCreatePaymentHandler(memoryProcessor, grpc, logger, metricsClient),
+			CreatePayment: command.NewCreatePaymentHandler(processor, grpc, logger, metricsClient),
 		},
 	}
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/tracing"
+
 	"github.com/baobao233/gorder/common/broker"
 	"github.com/baobao233/gorder/common/config"
 	"github.com/baobao233/gorder/common/logging"
@@ -25,6 +27,12 @@ func main() {
 	serviceName := viper.GetString("payment.service-name")
 	serviceType := viper.GetString("payment.server-to-run")
 
+	shutdown, err := tracing.InitJaeger(viper.GetString("jaeger.url"), serviceName)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer shutdown(ctx)
+
 	application, cleanup := service.NewApplication(ctx)
 	defer cleanup()
 
@@ -43,7 +51,7 @@ func main() {
 	// payment 服务需要启动一个协程监听 channel，也就是消费者; 另外consumer还需要用到application，因此需要把 application 传入到 consumer 中
 	go consumer.NewConsumer(application).Listen(ch)
 
-	paymentHandler := NewPaymentHandler()
+	paymentHandler := NewPaymentHandler(ch)
 	switch serviceType {
 	case "http":
 		server.RunHTTPServer(serviceName, paymentHandler.RegisterRoutes)

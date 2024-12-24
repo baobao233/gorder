@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/tracing"
+
 	"github.com/baobao233/gorder/common/config"
 	"github.com/baobao233/gorder/common/discovery"
 	"github.com/baobao233/gorder/common/genproto/stockpb"
@@ -28,6 +30,12 @@ func main() {
 	//因为后面需要超时控制，所以需要传入 withcancel
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	shutdown, err := tracing.InitJaeger(viper.GetString("jaeger.url"), serviceName)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer shutdown(ctx)
 
 	application := service.NewApplication(ctx)
 

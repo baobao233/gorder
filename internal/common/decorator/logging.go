@@ -3,8 +3,9 @@ package decorator
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 type queryLoggingDecorator[C, R any] struct {

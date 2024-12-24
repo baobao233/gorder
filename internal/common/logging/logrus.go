@@ -1,10 +1,10 @@
 package logging
 
 import (
-	"github.com/sirupsen/logrus"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"os"
 	"strconv"
+
+	"github.com/sirupsen/logrus"
 )
 
 /*
@@ -26,8 +26,8 @@ func SetFormatter(logger *logrus.Logger) {
 	})
 	// 如果是在本地模式中，强制格式化
 	if isLocal, _ := strconv.ParseBool(os.Getenv("LOCAL_ENV")); isLocal {
-		logrus.SetFormatter(&prefixed.TextFormatter{
-			ForceColors: true,
-		})
+		//logrus.SetFormatter(&prefixed.TextFormatter{
+		//	ForceColors: false,
+		//})
 	}
 }
