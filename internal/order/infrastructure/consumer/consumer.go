@@ -44,7 +44,7 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 	go func() {
 		for {
 			for msg := range msgs {
-				c.handleMessage(msg, q)
+				c.handleMessage(ch, msg, q)
 			}
 		}
 	}()
@@ -53,18 +53,27 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 	<-forever
 }
 
-func (c *Consumer) handleMessage(msg amqp.Delivery, q amqp.Queue) {
+func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Queue) {
 	// 抽取 ctx 并开启一个 span
 	ctx := broker.ExtractRabbitMQHeaders(context.Background(), msg.Headers)
 	t := otel.Tracer("rabbitmq")
 	_, span := t.Start(ctx, fmt.Sprintf("rabbitmq.%s.consume", q.Name))
 	defer span.End()
 
+	// 有错 nack，无错 ack
+	var err error
+	defer func() {
+		if err != nil {
+			_ = msg.Nack(false, false)
+		} else {
+			_ = msg.Ack(false)
+		}
+	}()
+
 	o := &domain.Order{}
-	err := json.Unmarshal(msg.Body, &o)
-	if err != nil {
-		logrus.Infof("errpor unmarshall msg.body into domain.order, err = %v", err)
-		_ = msg.Nack(false, false)
+
+	if err = json.Unmarshal(msg.Body, &o); err != nil {
+		logrus.Infof("error unmarshall msg.body into domain.order, err = %v", err)
 		return
 	}
 
@@ -80,11 +89,12 @@ func (c *Consumer) handleMessage(msg amqp.Delivery, q amqp.Queue) {
 	})
 	if err != nil {
 		logrus.Infof("error updating order, order id = %s, err = %v", o.ID, err)
-		// TODO: retry
+		if err = broker.HandleRetry(ctx, ch, &msg); err != nil {
+			logrus.Warnf("retry_error, error handle retry, messageID=%s, err=%v", msg.MessageId, err)
+		}
 		return
 	}
 
 	span.AddEvent("order.updated") // 如果没有报错可以添加一个事件
-	_ = msg.Ack(false)
 	logrus.Infof("order consume paid event success!!")
 }

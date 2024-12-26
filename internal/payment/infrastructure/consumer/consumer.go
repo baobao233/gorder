@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.opentelemetry.io/otel"
-
 	"github.com/baobao233/gorder/common/broker"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/baobao233/gorder/payment/app"
 	"github.com/baobao233/gorder/payment/app/command"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 )
 
 type Consumer struct {
@@ -41,7 +40,7 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 	go func() {
 		for {
 			for msg := range msgs {
-				c.handleMessage(msg, q)
+				c.handleMessage(ch, msg, q)
 			}
 		}
 	}()
@@ -50,7 +49,7 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 	<-forever
 }
 
-func (c *Consumer) handleMessage(msg amqp.Delivery, q amqp.Queue) {
+func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Queue) {
 	logrus.Infof("Payment recieve a message from %s, msg=%s", q.Name, string(msg.Body))
 	// extract span
 	ctx := broker.ExtractRabbitMQHeaders(context.Background(), msg.Headers)
@@ -58,21 +57,30 @@ func (c *Consumer) handleMessage(msg amqp.Delivery, q amqp.Queue) {
 	_, span := t.Start(ctx, fmt.Sprintf("rabbitmq.%s.consume", q.Name))
 	defer span.End()
 
+	// 有错 nack，无错 ack
+	var err error
+	defer func() {
+		if err != nil {
+			_ = msg.Nack(false, false) // 回复生产者没有接收到消息
+		} else {
+			_ = msg.Ack(false) // 回复生产者接收到消息
+		}
+	}()
+
 	o := &orderpb.Order{}
-	if err := json.Unmarshal(msg.Body, o); err != nil {
+	if err = json.Unmarshal(msg.Body, o); err != nil {
 		logrus.Warnf("failed to unmarshall msg to order, err=%v", err)
-		_ = msg.Nack(false, false)
 		return
 	}
-	_, err := c.app.Command.CreatePayment.Handle(ctx, command.CreatePayment{Order: o})
+	_, err = c.app.Command.CreatePayment.Handle(ctx, command.CreatePayment{Order: o})
 	if err != nil {
-		// TODO: Retry
-		logrus.Warnf("failed to create order, err=%v", err)
-		_ = msg.Nack(false, false)
+		logrus.Warnf("failed to create payment, err=%v", err)
+		if err = broker.HandleRetry(ctx, ch, &msg); err != nil {
+			logrus.Warnf("retry_error, error handle retry, messageID=%s, err=%v", msg.MessageId, err)
+		}
 		return
 	}
 
 	span.AddEvent("payment.created")
-	_ = msg.Ack(false) // 回复生产者有没有接收到消息
 	logrus.Info("consume success")
 }

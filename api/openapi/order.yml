@@ -11,18 +11,18 @@ servers:
 
 
 paths:
-  /customer/{customerID}/orders/{orderID}:
+  /customer/{customer_id}/orders/{order_id}:
     get:
       description: "get order"
       parameters:
         - in: path
-          name: customerID
+          name: customer_id
           schema:
             type: string
           required: true
 
         - in: path
-          name: orderID
+          name: order_id
           schema:
             type: string
           required: true
@@ -43,12 +43,12 @@ paths:
                 $ref: '#/components/schemas/Error'
 
 
-  /customer/{customerID}/orders:
+  /customer/{customer_id}/orders:
     post:
       description: "create order"
       parameters:
         - in: path
-          name: customerID
+          name: customer_id
           schema:
             type: string
           required: true
@@ -81,14 +81,14 @@ components:
       type: object
       required:
         - id
-        - customerID
+        - customer_id
         - status
         - items
-        - paymentLink
+        - payment_link
       properties:
         id:
           type: string
-        customerID:
+        customer_id:
           type: string
         status:
           type: string
@@ -96,7 +96,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Item'
-        paymentLink:
+        payment_link:
           type: string
 
 
@@ -106,7 +106,7 @@ components:
         - id
         - name
         - quantity
-        - priceID
+        - price_id
       properties:
         id:
           type: string
@@ -115,7 +115,7 @@ components:
         quantity:
           type: integer
           format: int32
-        priceID:
+        price_id:
           type: string
 
     Error:
@@ -127,10 +127,10 @@ components:
     CreateOrderRequest:
       type: object
       required:
-        - customerID
+        - customer_id
         - items
       properties:
-        customerID:
+        customer_id:
           type: string
         items:
           type: array

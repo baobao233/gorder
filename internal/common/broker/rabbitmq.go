@@ -4,9 +4,21 @@ import (
 	"context"
 	"fmt"
 	"go.opentelemetry.io/otel"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	DLX                = "dlx"
+	DLQ                = "dlq"
+	amqpRetryHeaderKey = "x-amqp-count"
+)
+
+var (
+	// maxRetryCount = viper.GetInt64("rabbitmq.max-retry")
+	maxRetryCount int64 = 3
 )
 
 // Connect 给 RabbitMQ 做相应的初始化
@@ -30,8 +42,63 @@ func Connect(user, password, host, port string) (*amqp.Channel, func() error) {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	// 创建死信队列
+	err = createDLX(ch)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 
 	return ch, conn.Close
+}
+
+func createDLX(ch *amqp.Channel) error {
+	q, err := ch.QueueDeclare("share_queue", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+	err = ch.ExchangeDeclare(DLX, "fanout", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+	err = ch.QueueBind(q.Name, "", DLX, false, nil)
+	if err != nil {
+		return err
+	}
+	_, err = ch.QueueDeclare(DLQ, true, false, false, false, nil)
+	return err
+}
+
+func HandleRetry(ctx context.Context, ch *amqp.Channel, d *amqp.Delivery) error {
+	if d.Headers == nil {
+		d.Headers = amqp.Table{}
+	}
+	retryCount, ok := d.Headers[amqpRetryHeaderKey].(int64)
+	if !ok {
+		retryCount = 0
+	}
+	retryCount++
+	d.Headers[amqpRetryHeaderKey] = retryCount
+
+	// 超过最大执行次数时执行放入死信队列逻辑
+	if retryCount >= maxRetryCount {
+		logrus.Infof("moving messages %s to dlq", d.MessageId)
+		return ch.PublishWithContext(ctx, "", DLQ, false, false, amqp.Publishing{
+			Headers:      d.Headers,
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent,
+			Body:         d.Body,
+		})
+	}
+
+	// 没超过时则把消息从哪来就重新 publish 到哪儿去
+	logrus.Infof("retrying message %s, count=%d", d.MessageId, retryCount)
+	time.Sleep(time.Second * time.Duration(retryCount)) // 根据重试的次数延长重试的时间
+	return ch.PublishWithContext(ctx, d.Exchange, d.RoutingKey, false, false, amqp.Publishing{
+		Headers:      d.Headers,
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Body:         d.Body,
+	})
 }
 
 // RabbitMQHeaderCarrier 为 mq 实现链路追踪，实现 carrier
