@@ -1,0 +1,2 @@
+output-options:
+   skip-prune: true  # 生成 openapi 文件时把没用到的 Order也生成

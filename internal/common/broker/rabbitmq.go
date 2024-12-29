@@ -3,8 +3,11 @@ package broker
 import (
 	"context"
 	"fmt"
+	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
 	"time"
+
+	_ "github.com/baobao233/gorder/common/config"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
@@ -17,8 +20,7 @@ const (
 )
 
 var (
-	// maxRetryCount = viper.GetInt64("rabbitmq.max-retry")
-	maxRetryCount int64 = 3
+	maxRetryCount = viper.GetInt64("rabbitmq.max-retry")
 )
 
 // Connect 给 RabbitMQ 做相应的初始化

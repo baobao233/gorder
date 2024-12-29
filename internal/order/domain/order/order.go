@@ -17,8 +17,8 @@ type Order struct {
 	Items       []*entity.Item
 }
 
-// NewOrder 将 orderpb 中的 order 转化成在代码中流通的 order
-func NewOrder(id, customerID, status, paymentLink string, items []*entity.Item) (*Order, error) {
+// NewOrder 创建代码中流通的 order，也就是 domain.Order
+func NewOrder(id, customerID, status string, paymentLink string, items []*entity.Item) (*Order, error) {
 	if id == "" {
 		return nil, errors.New("empty id")
 	}
@@ -38,6 +38,22 @@ func NewOrder(id, customerID, status, paymentLink string, items []*entity.Item) 
 		Status:      status,
 		PaymentLink: paymentLink,
 		Items:       items,
+	}, nil
+}
+
+// NewPendingOrder 创建用于 mongodb Create 的 order，也就是 domain.Order
+func NewPendingOrder(customerID string, items []*entity.Item) (*Order, error) {
+	if customerID == "" {
+		return nil, errors.New("empty customerID")
+	}
+	if items == nil {
+		return nil, errors.New("empty items")
+	}
+	// ps: payment可以为空，因为的订单已开始创建的时候就是 paymentLink 为空的
+	return &Order{
+		CustomerID: customerID,
+		Status:     "pending",
+		Items:      items,
 	}, nil
 }
 

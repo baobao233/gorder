@@ -27,6 +27,7 @@ func NewPaymentHandler(ch *amqp.Channel) *PaymentHandler {
 	return &PaymentHandler{channel: ch}
 }
 
+// RegisterRoutes cmd: stripe listen --forward-to localhost:8284/api/webhook
 func (h *PaymentHandler) RegisterRoutes(c *gin.Engine) {
 	// 注册一个路由，用于 stripe 返回结果到的一个 link
 	c.POST("/api/webhook", h.handleWebhook)
