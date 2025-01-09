@@ -34,5 +34,6 @@ func RunHTTPServerOnAddr(addr string, wrapper func(engine *gin.Engine)) {
 func setMiddlewares(r *gin.Engine) {
 	r.Use(middlewares.StructureLogger(logrus.NewEntry(logrus.StandardLogger())))
 	r.Use(gin.Recovery())
+	r.Use(middlewares.RequestLog(logrus.NewEntry(logrus.StandardLogger())))
 	r.Use(otelgin.Middleware("default_server "))
 }

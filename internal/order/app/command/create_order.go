@@ -3,11 +3,12 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/baobao233/gorder/order/convertor"
 	"github.com/baobao233/gorder/order/entity"
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
+	"google.golang.org/grpc/status"
 
 	"github.com/baobao233/gorder/common/broker"
 	"github.com/baobao233/gorder/common/decorator"
@@ -98,7 +99,7 @@ func (c createOrderCommand) Handle(ctx context.Context, cmd CreateOrder) (*Creat
 		Headers:      header,
 	}) // 发送信息到 queue 中
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "publish event error, q.Name=%s", q.Name)
 	}
 
 	return &CreateOrderResult{OrderID: o.ID}, nil
@@ -111,7 +112,7 @@ func (c createOrderCommand) validate(ctx context.Context, items []*entity.ItemWi
 	items = packItems(items)                                                                                            // 合并同类型的 item
 	resp, err := c.stockGRPC.CheckIfItemsInStock(ctx, convertor.NewItemWithQuantityConvertor().EntitiesToProtos(items)) // 进入到 grpc 时候需要转换一层
 	if err != nil {
-		return nil, err
+		return nil, status.Convert(err).Err()
 	}
 	return convertor.NewItemConvertor().ProtosToEntities(resp.Items), nil
 }

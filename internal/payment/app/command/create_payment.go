@@ -35,6 +35,7 @@ func (c createPaymentHandler) Handle(ctx context.Context, cmd CreatePayment) (st
 		PaymentLink: link,
 	}
 	err = c.orderGRPC.UpdateOrder(ctx, newOrder)
+
 	return link, err
 }
 

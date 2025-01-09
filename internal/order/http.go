@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/baobao233/gorder/common"
 	client "github.com/baobao233/gorder/common/client/order"
+	"github.com/baobao233/gorder/common/consts"
+	"github.com/baobao233/gorder/common/handler/errors"
 	"github.com/baobao233/gorder/order/app"
 	"github.com/baobao233/gorder/order/app/command"
 	"github.com/baobao233/gorder/order/app/dto"
@@ -29,8 +32,14 @@ func (H HTTPServer) PostCustomerCustomerIdOrders(c *gin.Context, customerID stri
 	}()
 
 	if err = c.ShouldBindJSON(&req); err != nil {
+		err = errors.NewWithError(consts.ErrnoBindRequest, err)
 		return
 	}
+	if err = H.validate(req); err != nil {
+		err = errors.NewWithError(consts.ErrnoRequestValidateError, err)
+		return
+	}
+
 	r, err := H.app.Commands.CreateOrder.Handle(c.Request.Context(), command.CreateOrder{ // 因为使用了 otelgin 中间件，所以可以直接使用请求带来的 context 嵌入链路追踪的 span
 		CustomerID: req.CustomerId,
 		Items:      convertor.NewItemWithQuantityConvertor().ClientsToEntities(req.Items), // 流转在代码内部，需要进行一层转换
@@ -67,4 +76,13 @@ func (H HTTPServer) GetCustomerCustomerIdOrdersOrderId(c *gin.Context, customerI
 	}
 
 	resp = convertor.NewOrderConvertor().EntityToClient(o)
+}
+
+func (H HTTPServer) validate(req client.CreateOrderRequest) error {
+	for _, i := range req.Items {
+		if i.Quantity <= 0 {
+			return fmt.Errorf("quantity must be positive, got %d from %s", i.Quantity, i.Id)
+		}
+	}
+	return nil
 }

@@ -16,9 +16,9 @@ type CommandHandler[C, R any] interface {
 
 // ApplyCommandDecorators 把 logger 传入到 CommandHandler 中,这样子我们就可以得到一个可以记录 log 的 CommandHandler，
 func ApplyCommandDecorators[C, R any](handler CommandHandler[C, R], logger *logrus.Entry, metricClient MetricClient) CommandHandler[C, R] {
-	return queryLoggingDecorator[C, R]{
+	return commandLoggingDecorator[C, R]{
 		logger: logger,
-		base: queryMetricsDecorator[C, R]{
+		base: commandMetricsDecorator[C, R]{
 			client: metricClient,
 			base:   handler,
 		},
