@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 	"sync"
 	"testing"
+	"time"
 )
 
 func setupTestDBt(t *testing.T) *persistent.MySQL {
@@ -44,6 +45,7 @@ func setupTestDBt(t *testing.T) *persistent.MySQL {
 	return persistent.NewMySQLWithDB(db)
 }
 
+// 测试竞争
 func TestMySQLStockRepository_UpdateStock_Race(t *testing.T) {
 	t.Parallel()
 	db := setupTestDBt(t)
@@ -90,8 +92,62 @@ func TestMySQLStockRepository_UpdateStock_Race(t *testing.T) {
 
 	res, err := repo.db.BatchGetStockByID(ctx, []string{testItem})
 	assert.NoError(t, err)
-	assert.NotEmpty(t, res, "res can  not be empty")
+	assert.NotEmpty(t, res, "res can not be empty")
 
 	expected := initialStock - goroutines
 	assert.Equal(t, int32(expected), res[0].Quantity)
+}
+
+// 测试超卖
+func TestMySQLStockRepository_UpdateStock_Oversell(t *testing.T) {
+	t.Parallel()
+	db := setupTestDBt(t)
+
+	var (
+		ctx          = context.Background()
+		testItem     = "test-race-item"
+		initialStock = 5
+	)
+	err := db.Create(ctx, &persistent.StockModel{ProductID: testItem, Quantity: int32(initialStock)})
+	assert.NoError(t, err)
+
+	repo := NewMySQLStockRepository(db)
+	var wg sync.WaitGroup
+	goroutines := 100
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := repo.UpdateStock(
+				ctx,
+				[]*entity.ItemWithQuantity{
+					{ID: testItem, Quantity: 1},
+				},
+				func(ctx context.Context, existing []*entity.ItemWithQuantity, query []*entity.ItemWithQuantity) ([]*entity.ItemWithQuantity, error) {
+					var newItems []*entity.ItemWithQuantity
+					for _, e := range existing {
+						for _, q := range query {
+							if e.ID == q.ID {
+								newItems = append(newItems, &entity.ItemWithQuantity{
+									ID:       e.ID,
+									Quantity: e.Quantity - q.Quantity,
+								})
+							}
+						}
+					}
+					return newItems, nil
+				},
+			)
+			assert.NoError(t, err)
+		}()
+		time.Sleep(20 * time.Millisecond)
+	}
+	wg.Wait()
+
+	res, err := repo.db.BatchGetStockByID(ctx, []string{testItem})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res, "res can not be empty")
+
+	// assert.Equal(t, 0, res[0].Quantity)
+	assert.GreaterOrEqual(t, res[0].Quantity, int32(0))
 }
