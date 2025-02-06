@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "github.com/baobao233/gorder/common/config"
 	"github.com/baobao233/gorder/common/logging"
+	"github.com/baobao233/gorder/stock/infrastructure/persistent/builder"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
@@ -67,10 +68,10 @@ func (d MySQL) StartTransaction(f func(tx *gorm.DB) error) error {
 }
 
 // BatchGetStockByID 根据 ids 查询 stock 中还有多少库存
-func (d MySQL) BatchGetStockByID(ctx context.Context, productIDs []string) ([]StockModel, error) {
-	_, deferLog := logging.WhenMySQL(ctx, "BatchGetStockByID", productIDs)
+func (d MySQL) BatchGetStockByID(ctx context.Context, query *builder.Stock) ([]StockModel, error) {
+	_, deferLog := logging.WhenMySQL(ctx, "BatchGetStockByID", query) // log
 	var res []StockModel
-	tx := d.db.WithContext(ctx).Clauses(clause.Returning{}).Where("product_id IN ?", productIDs).Find(&res)
+	tx := query.Fill(d.db.WithContext(ctx).Clauses(clause.Returning{})).Find(&res) // builder 模式去封装 sql 语句的链式调用，做 where 之类的填充
 	defer deferLog(res, &tx.Error)
 	if tx.Error != nil {
 		return nil, tx.Error

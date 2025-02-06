@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/baobao233/gorder/stock/entity"
 	"github.com/baobao233/gorder/stock/infrastructure/persistent"
+	"github.com/baobao233/gorder/stock/infrastructure/persistent/builder"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/mysql"
@@ -90,7 +91,7 @@ func TestMySQLStockRepository_UpdateStock_Race(t *testing.T) {
 	}
 	wg.Wait()
 
-	res, err := repo.db.BatchGetStockByID(ctx, []string{testItem})
+	res, err := repo.db.BatchGetStockByID(ctx, builder.NewStock().ProductIDs(testItem))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, res, "res can not be empty")
 
@@ -144,7 +145,7 @@ func TestMySQLStockRepository_UpdateStock_Oversell(t *testing.T) {
 	}
 	wg.Wait()
 
-	res, err := repo.db.BatchGetStockByID(ctx, []string{testItem})
+	res, err := repo.db.BatchGetStockByID(ctx, builder.NewStock().ProductIDs(testItem))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, res, "res can not be empty")
 

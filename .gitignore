@@ -31,3 +31,5 @@ go.work.sum
 **/tmp/
 **/bin/
 
+# store data
+data
