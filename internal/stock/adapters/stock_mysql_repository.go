@@ -24,8 +24,7 @@ func (m MySQLStockRepository) GetItems(ctx context.Context, ids []string) ([]*en
 }
 
 func (m MySQLStockRepository) GetStock(ctx context.Context, ids []string) ([]*entity.ItemWithQuantity, error) {
-	query := builder.NewStock().ProductIDs(ids...) // builder 模式
-	data, err := m.db.BatchGetStockByID(ctx, query)
+	data, err := m.db.BatchGetStockByID(ctx, builder.NewStock().ProductIDs(ids...)) // builder 模式构造带有productIDs的 stock 数据
 	if err != nil {
 		return nil, errors.Wrap(err, "BatchGetStockByID error")
 	}
@@ -69,11 +68,10 @@ func (m MySQLStockRepository) updatePessimistic(ctx context.Context,
 	data []*entity.ItemWithQuantity,
 	updateFn func(ctx context.Context, existing []*entity.ItemWithQuantity, query []*entity.ItemWithQuantity,
 	) ([]*entity.ItemWithQuantity, error)) error {
-	var dest []*persistent.StockModel
+	var dest []persistent.StockModel
 	queryIDs := getIDFromEntities(data)
-	if err := builder.NewStock().ProductIDs(queryIDs...).ForUpdate().
-		Fill(tx.Model(&persistent.StockModel{})).
-		Find(&dest).Error; err != nil {
+	dest, err := m.db.BatchGetStockByID(ctx, builder.NewStock().ProductIDs(queryIDs...).ForUpdate())
+	if err != nil {
 		return errors.Wrap(err, "failed to find data")
 	}
 
@@ -86,9 +84,16 @@ func (m MySQLStockRepository) updatePessimistic(ctx context.Context,
 
 	for _, upd := range updated {
 		for _, query := range data {
-			if err = builder.NewStock().ProductIDs(upd.ID).QuantityGT(query.Quantity).
-				Fill(tx.Model(&persistent.StockModel{})).
-				Update("quantity", gorm.Expr("quantity - ?", query.Quantity)).Error; err != nil {
+			if upd.ID != query.ID {
+				continue
+			}
+			if err = m.db.Update(
+				ctx,
+				tx,
+				builder.NewStock().ProductIDs(upd.ID).QuantityGT(query.Quantity),
+				map[string]any{
+					"quantity": gorm.Expr("quantity - ?", query.Quantity),
+				}); err != nil {
 				return errors.Wrapf(err, "unable to update %s", upd.ID)
 			}
 		}
@@ -101,37 +106,30 @@ func (m MySQLStockRepository) updateOptimistic(ctx context.Context,
 	data []*entity.ItemWithQuantity,
 	updateFn func(ctx context.Context, existing []*entity.ItemWithQuantity, query []*entity.ItemWithQuantity,
 	) ([]*entity.ItemWithQuantity, error)) error {
-	var dest []*persistent.StockModel
-	queryIDs := getIDFromEntities(data)
-	if err := builder.NewStock().ProductIDs(queryIDs...).
-		Fill(tx.Model(&persistent.StockModel{})).Find(&dest).Error; err != nil {
-		return errors.Wrap(err, "failed to find data")
-	}
-
 	for _, queryData := range data {
 		// 查询最新版本
-		var newestRecord persistent.StockModel
-		if err := builder.NewStock().ProductIDs(queryData.ID).
-			Fill(tx.Model(&persistent.StockModel{})).
-			First(&newestRecord).Error; err != nil {
+		var newestRecord *persistent.StockModel
+		newestRecord, err := m.db.GetStockByID(ctx, builder.NewStock().ProductIDs(queryData.ID))
+		if err != nil {
 			return err
 		}
 
 		// 更新再查最新版本与再查版本是否一致，一致时则更新；不重试，因为 version 一定是递增
-
-		if err := builder.NewStock().ProductIDs(queryData.ID).Versions(newestRecord.Version).QuantityGT(queryData.Quantity).
-			Fill(tx.Model(&persistent.StockModel{})).Updates(map[string]any{
-			"quantity": gorm.Expr("quantity - ?", queryData.Quantity),
-			"version":  newestRecord.Version + 1,
-		}).Error; err != nil {
+		if err = m.db.Update(
+			ctx,
+			tx,
+			builder.NewStock().ProductIDs(queryData.ID).Versions(newestRecord.Version).QuantityGT(queryData.Quantity),
+			map[string]any{
+				"quantity": gorm.Expr("quantity - ?", queryData.Quantity),
+				"version":  newestRecord.Version + 1,
+			}); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-func (m MySQLStockRepository) unmarshalFromDatabase(dest []*persistent.StockModel) []*entity.ItemWithQuantity {
+func (m MySQLStockRepository) unmarshalFromDatabase(dest []persistent.StockModel) []*entity.ItemWithQuantity {
 	var result []*entity.ItemWithQuantity
 	for _, d := range dest {
 		result = append(result, &entity.ItemWithQuantity{

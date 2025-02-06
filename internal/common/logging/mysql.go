@@ -2,7 +2,7 @@ package logging
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/baobao233/gorder/common/util"
 	"github.com/sirupsen/logrus"
 	"strings"
 	"time"
@@ -15,6 +15,11 @@ const (
 	Response = "resp"
 	Error    = "err"
 )
+
+// ArgFormatter 为了让不同的表都能打日志，我们需要通过依赖倒置让想打日志的表都去实现这个接口
+type ArgFormatter interface {
+	FormatArg() (string, error)
+}
 
 func WhenMySQL(ctx context.Context, method string, args ...any) (logrus.Fields, func(any, *error)) {
 	fields := logrus.Fields{
@@ -45,12 +50,20 @@ func formatMySQLArgs(args []any) string {
 }
 
 func formatMySQLArg(arg any) string {
+	var (
+		str string
+		err error
+	)
+	defer func() {
+		if err != nil {
+			str = "unsupported type in formatMySQLArg||err=" + err.Error()
+		}
+	}()
 	switch v := arg.(type) {
 	default:
-		bytes, err := json.Marshal(v)
-		if err != nil {
-			return "unsupported type in formatMySQLArg||err=" + err.Error()
-		}
-		return string(bytes)
+		str, err = util.MarshallString(v)
+	case ArgFormatter:
+		str, err = v.FormatArg()
 	}
+	return str
 }
