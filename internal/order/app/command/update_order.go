@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/logging"
 
 	"github.com/baobao233/gorder/common/decorator"
 	domain "github.com/baobao233/gorder/order/domain/order"
@@ -35,12 +36,13 @@ func NewUpdateOrderHandler(
 }
 
 func (c updateOrderCommand) Handle(ctx context.Context, cmd UpdateOrder) (interface{}, error) {
+	var err error
+	defer logging.WhenCommandExecute(ctx, "UpdateOrderHandler", cmd, err)
+
 	if cmd.UpdateFn == nil {
-		logrus.Warnf("updateOrderCommandHandler got nil UpdateFn, order=%#v", cmd.Order)
-		// 如果没有 updateFn, 则什么也不做
-		cmd.UpdateFn = func(_ context.Context, order *domain.Order) (*domain.Order, error) { return order, nil }
+		logrus.Panicf("UpdateOrderHandler got nil order, cmd=%+v", cmd)
 	}
-	if err := c.orderRepo.Update(ctx, cmd.Order, cmd.UpdateFn); err != nil {
+	if err = c.orderRepo.Update(ctx, cmd.Order, cmd.UpdateFn); err != nil {
 		return nil, err
 	}
 	return nil, nil

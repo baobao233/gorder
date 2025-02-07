@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/baobao233/gorder/common/logging"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"net"
 
@@ -31,11 +32,12 @@ func RunGRPCServerOnAddr(addr string, registerServer func(server *grpc.Server)) 
 	logrusEntry := logrus.NewEntry(logrus.StandardLogger())
 	grpcServer := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		grpc.ChainUnaryInterceptor(
+		grpc.ChainUnaryInterceptor( // 单个请求链
 			grpc_tags.UnaryServerInterceptor(grpc_tags.WithFieldExtractor(grpc_tags.CodeGenRequestFieldExtractor)), // 一般抽取 field 出来打印日志用的，可以用于提取请求结构体中的 field
 			grpc_logurs.UnaryServerInterceptor(logrusEntry),
+			logging.GRPCUnaryInterceptor,
 		),
-		grpc.ChainStreamInterceptor(
+		grpc.ChainStreamInterceptor( // 跨服务的请求链
 			grpc_tags.StreamServerInterceptor(grpc_tags.WithFieldExtractor(grpc_tags.CodeGenRequestFieldExtractor)),
 			grpc_logurs.StreamServerInterceptor(logrusEntry),
 		),

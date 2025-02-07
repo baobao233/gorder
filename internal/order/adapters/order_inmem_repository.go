@@ -2,12 +2,12 @@ package adapters
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/logging"
 	"strconv"
 	"sync"
 	"time"
 
 	domain "github.com/baobao233/gorder/order/domain/order"
-	"github.com/sirupsen/logrus"
 )
 
 // MemoryOrderRepository Repository的具体实现
@@ -18,20 +18,25 @@ type MemoryOrderRepository struct {
 
 func NewMemoryOrderRepository() *MemoryOrderRepository {
 	s := make([]*domain.Order, 0)
-	s = append(s, &domain.Order{
-		ID:          "fake-id",
-		CustomerID:  "fake-customer-id",
-		Status:      "fake-status",
-		PaymentLink: "fake-payment-link",
-		Items:       nil,
-	})
+	s = []*domain.Order{
+		{
+			ID:          "fake-id",
+			CustomerID:  "fake-customer-id",
+			Status:      "fake-status",
+			PaymentLink: "fake-payment-link",
+			Items:       nil,
+		},
+	}
 	return &MemoryOrderRepository{
 		lock:  &sync.RWMutex{},
 		store: s,
 	}
 }
 
-func (m *MemoryOrderRepository) Create(_ context.Context, order *domain.Order) (*domain.Order, error) {
+func (m *MemoryOrderRepository) Create(ctx context.Context, order *domain.Order) (created *domain.Order, err error) {
+	_, deferLog := logging.WhenRequest(ctx, "MemoryOrderRepository.Create", map[string]any{"order": order}) // log
+	defer deferLog(created, &err)
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -42,31 +47,39 @@ func (m *MemoryOrderRepository) Create(_ context.Context, order *domain.Order) (
 		PaymentLink: order.PaymentLink,
 		Items:       order.Items,
 	}
-	m.store = append(m.store, newOrder)
-	logrus.WithFields(logrus.Fields{
-		"input_order":         order,
-		"store_after_create_": m.store,
-	}).Infof("memory_order_repo_create")
+
 	return newOrder, nil
 }
 
-func (m *MemoryOrderRepository) Get(_ context.Context, id, customerID string) (*domain.Order, error) {
+func (m *MemoryOrderRepository) Get(ctx context.Context, id, customerID string) (got *domain.Order, err error) {
+	_, deferLog := logging.WhenRequest(ctx, "OrderRepositoryMongo.Get", map[string]any{
+		"id":       id,
+		"customID": customerID,
+	}) // log
+	defer deferLog(customerID, &err)
+
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-
 	for _, order := range m.store {
 		if order.ID == id && order.CustomerID == customerID {
-			logrus.Infof("memory_order_repo_get || found || id=%s || customerID=%s || res=%v", order.ID, order.CustomerID, *order)
 			return order, nil
 		}
 	}
 	return nil, domain.NotFoundError{OrderID: id}
 }
 
-func (m *MemoryOrderRepository) Update(ctx context.Context, o *domain.Order, updateFunc func(context.Context, *domain.Order) (*domain.Order, error)) error {
+func (m *MemoryOrderRepository) Update(
+	ctx context.Context,
+	o *domain.Order,
+	updateFunc func(context.Context, *domain.Order) (*domain.Order, error),
+) (err error) {
+	_, deferLog := logging.WhenRequest(ctx, "OrderRepositoryMongo.Update", map[string]any{
+		"order": o,
+	}) // log
+	defer deferLog(nil, &err)
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
-
 	found := false
 	for i, order := range m.store {
 		if order.ID == o.ID && order.CustomerID == o.CustomerID {

@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"fmt"
+	"github.com/baobao233/gorder/common/logging"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
 	"time"
@@ -70,7 +71,13 @@ func createDLX(ch *amqp.Channel) error {
 	return err
 }
 
-func HandleRetry(ctx context.Context, ch *amqp.Channel, d *amqp.Delivery) error {
+func HandleRetry(ctx context.Context, ch *amqp.Channel, d *amqp.Delivery) (err error) {
+	fields, dLog := logging.WhenRequest(ctx, "HandleRetry", map[string]any{
+		"delivery":        d,
+		"max_retry_count": maxRetryCount,
+	})
+	defer dLog(nil, &err)
+
 	if d.Headers == nil {
 		d.Headers = amqp.Table{}
 	}
@@ -80,11 +87,12 @@ func HandleRetry(ctx context.Context, ch *amqp.Channel, d *amqp.Delivery) error 
 	}
 	retryCount++
 	d.Headers[amqpRetryHeaderKey] = retryCount
+	fields["retry_count"] = retryCount
 
 	// 超过最大执行次数时执行放入死信队列逻辑
 	if retryCount >= maxRetryCount {
-		logrus.Infof("moving messages %s to dlq", d.MessageId)
-		return ch.PublishWithContext(ctx, "", DLQ, false, false, amqp.Publishing{
+		logrus.WithContext(ctx).Infof("moving messages %s to dlq", d.MessageId)
+		return doPublish(ctx, ch, "", DLQ, false, false, amqp.Publishing{
 			Headers:      d.Headers,
 			ContentType:  "application/json",
 			DeliveryMode: amqp.Persistent,
@@ -93,9 +101,9 @@ func HandleRetry(ctx context.Context, ch *amqp.Channel, d *amqp.Delivery) error 
 	}
 
 	// 没超过时则把消息从哪来就重新 publish 到哪儿去
-	logrus.Infof("retrying message %s, count=%d", d.MessageId, retryCount)
+	logrus.WithContext(ctx).Debugf("retrying message %s, count=%d", d.MessageId, retryCount)
 	time.Sleep(time.Second * time.Duration(retryCount)) // 根据重试的次数延长重试的时间
-	return ch.PublishWithContext(ctx, d.Exchange, d.RoutingKey, false, false, amqp.Publishing{
+	return doPublish(ctx, ch, d.Exchange, d.RoutingKey, false, false, amqp.Publishing{
 		Headers:      d.Headers,
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,

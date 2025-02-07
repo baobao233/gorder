@@ -1,9 +1,10 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/baobao233/gorder/common/logging"
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"io"
 	"net/http"
@@ -35,13 +36,21 @@ func (h *PaymentHandler) RegisterRoutes(c *gin.Engine) {
 
 // handleWebhook 处理从 stripe 传回来的信息，stripe 与 payment 之间通过 checkoutSession 传递信息，将订单已经支付的消息发送到 mq 中
 func (h *PaymentHandler) handleWebhook(c *gin.Context) {
-	logrus.Info("receive webhook from stripe")
+	logrus.WithContext(c.Request.Context()).Info("receive webhook from stripe")
+	var err error
+	defer func() {
+		if err != nil {
+			logging.Warnf(c.Request.Context(), nil, "handleWebhook err=%v", err)
+		} else {
+			logging.Infof(c.Request.Context(), nil, "%v", "handleWebhook success")
+		}
+	}()
 
 	const MaxBodyBytes = int64(65536)
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, MaxBodyBytes)
 	payload, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		logrus.Infof("Error reading request body: %v\n", err)
+		err = errors.Wrap(err, "Error reading request body")
 		c.JSON(http.StatusServiceUnavailable, err.Error())
 		return
 	}
@@ -50,7 +59,7 @@ func (h *PaymentHandler) handleWebhook(c *gin.Context) {
 		viper.GetString("ENDPOINT_STRIPE_SECRET")) // 看备忘录获得具体来源
 
 	if err != nil {
-		logrus.Infof("Error verifying webhook signature: %v\n", err)
+		err = errors.Wrap(err, "error verifying webhook signature")
 		c.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
@@ -60,44 +69,38 @@ func (h *PaymentHandler) handleWebhook(c *gin.Context) {
 	case stripe.EventTypeCheckoutSessionCompleted:
 		var session stripe.CheckoutSession
 		if err = json.Unmarshal(event.Data.Raw, &session); err != nil {
-			logrus.Infof("error unmarshall event.data.raw into session, err = %v", err)
+			err = errors.Wrap(err, "error unmarshall event.data.raw into session")
 			c.JSON(http.StatusBadRequest, err.Error())
 			return
 		}
 
 		if session.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid {
-			logrus.Infof("payment for checkout session %v success!", session.ID)
-			ctx, cancel := context.WithCancel(context.TODO())
-			defer cancel()
-
 			var items []*orderpb.Item
 			_ = json.Unmarshal([]byte(session.Metadata["items"]), &items)
-			// 构造 marshalledOrder 发送给 mq，传递给 order 去 update
-			marshallerOrder, err := json.Marshal(&domain.Order{
-				ID:          session.Metadata["orderID"],
-				CustomerID:  session.Metadata["customerID"],
-				Status:      string(stripe.CheckoutSessionPaymentStatusPaid),
-				PaymentLink: session.Metadata["paymentLink"],
-				Items:       items,
-			})
+
 			if err != nil {
-				logrus.Infof("error marshall domain order, err = %v", err)
+				err = errors.Wrap(err, "error marshall domain order")
 				return
 			}
 
 			tr := otel.Tracer("rabbitmq")
-			mqCtx, span := tr.Start(ctx, fmt.Sprintf("rabbitmq.%s.publish", broker.EventOrderPaid))
+			ctx, span := tr.Start(c.Request.Context(), fmt.Sprintf("rabbitmq.%s.publish", broker.EventOrderPaid))
 			defer span.End()
 
-			headers := broker.InjectRabbitMQHeaders(mqCtx) // 注入 headers 进行链路追踪
-			// 将订单已经支付的消息发送到 mq 中
-			_ = h.channel.PublishWithContext(mqCtx, broker.EventOrderPaid, "", false, false, amqp.Publishing{
-				ContentType:  "application/json",
-				DeliveryMode: amqp.Persistent,
-				Body:         marshallerOrder,
-				Headers:      headers,
+			// 发送给 mq，传递给 order 去 update
+			_ = broker.PublishEvent(ctx, broker.PublishEventReq{
+				Channel:  h.channel,
+				Routing:  broker.FanOut,
+				Exchange: broker.EventOrderPaid,
+				Queue:    "",
+				Body: &domain.Order{
+					ID:          session.Metadata["orderID"],
+					CustomerID:  session.Metadata["customerID"],
+					Status:      string(stripe.CheckoutSessionPaymentStatusPaid),
+					PaymentLink: session.Metadata["paymentLink"],
+					Items:       items,
+				},
 			})
-			logrus.Infof("message published to %s, body: %s", broker.EventOrderPaid, string(marshallerOrder))
 		}
 	}
 	c.JSON(http.StatusOK, nil)

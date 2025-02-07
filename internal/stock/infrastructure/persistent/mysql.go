@@ -49,8 +49,8 @@ type StockModel struct {
 	ProductID string    `gorm:"column:product_id"`
 	Quantity  int32     `gorm:"column:quantity"`
 	Version   int64     `gorm:"column:version"`
-	CreatedAt time.Time `gorm:"column:created_at autoCreateTime"`
-	UpdatedAt time.Time `gorm:"column:updated_at autoUpdateTime"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
 // TableName 需要为 StockModel 指定 TableName
@@ -74,41 +74,41 @@ func (d MySQL) StartTransaction(f func(tx *gorm.DB) error) error {
 	return d.db.Transaction(f)
 }
 
-func (d MySQL) GetStockByID(ctx context.Context, query *builder.Stock) (*StockModel, error) {
+func (d MySQL) GetStockByID(ctx context.Context, query *builder.Stock) (result *StockModel, err error) {
 	_, deferLog := logging.WhenMySQL(ctx, "GetStockByID", query) // log
-	var res StockModel
-	tx := query.Fill(d.db.WithContext(ctx)).First(&res) // builder 模式去封装 sql 语句的链式调用，做 where 之类的填充
-	defer deferLog(res, &tx.Error)
-	if tx.Error != nil {
-		return nil, tx.Error
+	defer deferLog(result, &err)
+	err = query.Fill(d.db.WithContext(ctx)).First(&result).Error // builder 模式去封装 sql 语句的链式调用，做 where 之类的填充
+	if err != nil {
+		return nil, err
 	}
-	return &res, nil
+	return result, nil
 }
 
 // BatchGetStockByID 根据 ids 查询 stock 中还有多少库存
-func (d MySQL) BatchGetStockByID(ctx context.Context, query *builder.Stock) ([]StockModel, error) {
+func (d MySQL) BatchGetStockByID(ctx context.Context, query *builder.Stock) (result []StockModel, err error) {
 	_, deferLog := logging.WhenMySQL(ctx, "BatchGetStockByID", query) // log
-	var res []StockModel
-	tx := query.Fill(d.db.WithContext(ctx).Find(&res)) // builder 模式去封装 sql 语句的链式调用，做 where 之类的填充
-	defer deferLog(res, &tx.Error)
-	if tx.Error != nil {
-		return nil, tx.Error
+	defer deferLog(result, &err)
+
+	err = query.Fill(d.db.WithContext(ctx).Find(&result)).Error // builder 模式去封装 sql 语句的链式调用，做 where 之类的填充
+	if err != nil {
+		return nil, err
 	}
-	return res, nil
+	return result, nil
 }
 
-func (d MySQL) Update(ctx context.Context, tx *gorm.DB, cond *builder.Stock, update map[string]any) error {
-	_, deferLog := logging.WhenMySQL(ctx, "Update", cond)
+func (d MySQL) Update(ctx context.Context, tx *gorm.DB, cond *builder.Stock, update map[string]any) (err error) {
 	var returning StockModel
+	_, deferLog := logging.WhenMySQL(ctx, "Update", cond)
+	defer deferLog(returning, &err)
+
 	res := cond.Fill(d.UseTransaction(tx).WithContext(ctx).Model(&returning).Clauses(clause.Returning{})).Updates(update) // 链式调用
-	defer deferLog(returning, &res.Error)
 	return res.Error
 }
 
-func (d MySQL) Create(ctx context.Context, tx *gorm.DB, create *StockModel) error {
-	_, deferLog := logging.WhenMySQL(ctx, "Create", create)
+func (d MySQL) Create(ctx context.Context, tx *gorm.DB, create *StockModel) (err error) {
 	var returning StockModel
-	err := d.UseTransaction(tx).WithContext(ctx).Model(&returning).Clauses(clause.Returning{}).Create(create).Error
+	_, deferLog := logging.WhenMySQL(ctx, "Create", create)
 	defer deferLog(returning, &err)
-	return err
+
+	return d.UseTransaction(tx).WithContext(ctx).Model(&returning).Clauses(clause.Returning{}).Create(create).Error
 }

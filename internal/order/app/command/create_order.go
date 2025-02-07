@@ -2,8 +2,8 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/baobao233/gorder/common/logging"
 	"github.com/baobao233/gorder/order/convertor"
 	"github.com/baobao233/gorder/order/entity"
 	"github.com/pkg/errors"
@@ -62,14 +62,11 @@ func NewCreateOrderHandler(
 }
 
 func (c createOrderCommand) Handle(ctx context.Context, cmd CreateOrder) (*CreateOrderResult, error) {
-	// 如果没有异常，就声明一个 queue
-	q, err := c.channel.QueueDeclare(broker.EventOrderCreated, true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
+	var err error
+	defer logging.WhenCommandExecute(ctx, "CreateOrderHandler", cmd, err)
 
 	t := otel.Tracer("rabbitmq")
-	ctx, span := t.Start(ctx, fmt.Sprintf("rabbitmq.%s.publish", q.Name)) // Create a span to track validate() and PublishWithContext()
+	ctx, span := t.Start(ctx, fmt.Sprintf("rabbitmq.%s.publish", broker.EventOrderCreated)) // Create a span to track validate() and PublishWithContext()
 	defer span.End()
 
 	// 调用 stockGRPC 校验
@@ -87,19 +84,15 @@ func (c createOrderCommand) Handle(ctx context.Context, cmd CreateOrder) (*Creat
 		return nil, err
 	}
 
-	marshalledOrder, err := json.Marshal(o)     // 将 order 变成一个 json 传入到 queue 中
-	header := broker.InjectRabbitMQHeaders(ctx) // inject context
+	err = broker.PublishEvent(ctx, broker.PublishEventReq{
+		Channel:  c.channel,
+		Routing:  broker.Direct,
+		Exchange: "",
+		Queue:    broker.EventOrderCreated,
+		Body:     o,
+	})
 	if err != nil {
-		return nil, err
-	}
-	err = c.channel.PublishWithContext(ctx, "", q.Name, false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: amqp.Persistent, // 持久化这个消息
-		Body:         marshalledOrder,
-		Headers:      header,
-	}) // 发送信息到 queue 中
-	if err != nil {
-		return nil, errors.Wrapf(err, "publish event error, q.Name=%s", q.Name)
+		return nil, errors.Wrapf(err, "publish event error, q.Name=%s", broker.EventOrderCreated)
 	}
 
 	return &CreateOrderResult{OrderID: o.ID}, nil

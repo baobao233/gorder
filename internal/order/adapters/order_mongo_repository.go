@@ -3,14 +3,13 @@ package adapters
 import (
 	"context"
 	_ "github.com/baobao233/gorder/common/config"
+	"github.com/baobao233/gorder/common/logging"
 	domain "github.com/baobao233/gorder/order/domain/order"
 	"github.com/baobao233/gorder/order/entity"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"time"
 )
 
 var (
@@ -40,7 +39,8 @@ type orderModel struct {
 }
 
 func (r *OrderRepositoryMongo) Create(ctx context.Context, order *domain.Order) (created *domain.Order, err error) {
-	defer r.logWithTag("create", err, created)
+	_, deferLog := logging.WhenRequest(ctx, "OrderRepositoryMongo.Create", map[string]any{"order": order}) // log
+	defer deferLog(created, &err)
 
 	write := r.marshalToModel(order)
 	res, err := r.collection().InsertOne(ctx, write)
@@ -53,7 +53,11 @@ func (r *OrderRepositoryMongo) Create(ctx context.Context, order *domain.Order) 
 }
 
 func (r *OrderRepositoryMongo) Get(ctx context.Context, id, customerID string) (got *domain.Order, err error) {
-	r.logWithTag("get", err, got)
+	_, deferLog := logging.WhenRequest(ctx, "OrderRepositoryMongo.Get", map[string]any{
+		"id":       id,
+		"customID": customerID,
+	}) // log
+	defer deferLog(customerID, &err)
 
 	read := &orderModel{}
 	mongoID, _ := primitive.ObjectIDFromHex(id)
@@ -70,12 +74,15 @@ func (r *OrderRepositoryMongo) Get(ctx context.Context, id, customerID string) (
 }
 
 // Update 先查找 update 的 order，然后执行 updateFunc，最后写入回去
-func (r *OrderRepositoryMongo) Update(ctx context.Context, order *domain.Order, updateFunc func(context.Context, *domain.Order) (*domain.Order, error)) (err error) {
-	r.logWithTag("update", err, nil)
-
-	if order == nil {
-		panic("got nil order")
-	}
+func (r *OrderRepositoryMongo) Update(
+	ctx context.Context,
+	order *domain.Order,
+	updateFunc func(context.Context, *domain.Order) (*domain.Order, error),
+) (err error) {
+	_, deferLog := logging.WhenRequest(ctx, "OrderRepositoryMongo.Update", map[string]any{
+		"order": order,
+	}) // log
+	defer deferLog(nil, &err)
 
 	// 启动 mongoDB 的事务
 	session, err := r.db.StartSession() // 先启动 session, 因为是通过 session 控制的 transaction
@@ -105,7 +112,7 @@ func (r *OrderRepositoryMongo) Update(ctx context.Context, order *domain.Order, 
 		return
 	}
 	mongoID, _ := primitive.ObjectIDFromHex(oldOrder.ID)
-	res, err := r.collection().UpdateOne(
+	_, err = r.collection().UpdateOne(
 		ctx,
 		bson.M{"_id": mongoID, "customer_id": order.CustomerID},
 		bson.M{"$set": bson.M{
@@ -117,7 +124,6 @@ func (r *OrderRepositoryMongo) Update(ctx context.Context, order *domain.Order, 
 		return
 	}
 
-	r.logWithTag("finish_update", err, res)
 	return
 }
 
@@ -139,19 +145,5 @@ func (r *OrderRepositoryMongo) unmarshal(m *orderModel) *domain.Order {
 		Status:      m.Status,
 		PaymentLink: m.PaymentLink,
 		Items:       m.Items,
-	}
-}
-
-func (r *OrderRepositoryMongo) logWithTag(tag string, err error, result interface{}) {
-	l := logrus.WithFields(logrus.Fields{
-		"tag":            "order_repository_mongo",
-		"performed_time": time.Now().Unix(),
-		"err":            err,
-		"result":         result,
-	})
-	if err != nil {
-		l.Infof("%s_fail", tag)
-	} else {
-		l.Infof("%s_success", tag)
 	}
 }

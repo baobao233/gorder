@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/baobao233/gorder/common/logging"
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 
 	"github.com/baobao233/gorder/common/broker"
@@ -54,26 +56,26 @@ func (c *Consumer) Listen(ch *amqp.Channel) {
 }
 
 func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Queue) {
-	// 抽取 ctx 并开启一个 span
-	ctx := broker.ExtractRabbitMQHeaders(context.Background(), msg.Headers)
 	t := otel.Tracer("rabbitmq")
-	_, span := t.Start(ctx, fmt.Sprintf("rabbitmq.%s.consume", q.Name))
+	ctx, span := t.Start(broker.ExtractRabbitMQHeaders(context.Background(), msg.Headers), fmt.Sprintf("rabbitmq.%s.consume", q.Name)) // 抽取 ctx 并开启一个 span
 	defer span.End()
 
 	// 有错 nack，无错 ack
 	var err error
 	defer func() {
 		if err != nil {
-			_ = msg.Nack(false, false)
+			logging.Warnf(ctx, nil, "consume failed||from=%s||msg=%+v||err=%v", q.Name, msg, err)
+			_ = msg.Nack(false, false) // 回复生产者没有接收到消息
 		} else {
-			_ = msg.Ack(false)
+			logging.Warnf(ctx, nil, "%v", "consume success")
+			_ = msg.Ack(false) // 回复生产者接收到消息
 		}
 	}()
 
 	o := &domain.Order{}
 
 	if err = json.Unmarshal(msg.Body, &o); err != nil {
-		logrus.Infof("error unmarshall msg.body into domain.order, err = %v", err)
+		err = errors.Wrap(err, "failed to unmarshall msg to order")
 		return
 	}
 
@@ -88,13 +90,12 @@ func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Que
 		},
 	})
 	if err != nil {
-		logrus.Infof("error updating order, order id = %s, err = %v", o.ID, err)
+		logging.Errorf(ctx, nil, "error updating order||orderID=%s||err=%v", o.ID, err)
 		if err = broker.HandleRetry(ctx, ch, &msg); err != nil {
-			logrus.Warnf("retry_error, error handle retry, messageID=%s, err=%v", msg.MessageId, err)
+			err = errors.Wrapf(err, "retry_error, error handle retry, messageID=%s||err=%v", msg.MessageId, err)
 		}
 		return
 	}
 
 	span.AddEvent("order.updated") // 如果没有报错可以添加一个事件
-	logrus.Infof("order consume paid event success!!")
 }

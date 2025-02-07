@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/baobao233/gorder/common/decorator"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
+	"github.com/baobao233/gorder/common/logging"
 	"github.com/baobao233/gorder/payment/domain"
 	"github.com/sirupsen/logrus"
 )
@@ -21,11 +22,13 @@ type createPaymentHandler struct {
 }
 
 func (c createPaymentHandler) Handle(ctx context.Context, cmd CreatePayment) (string, error) {
+	var err error
+	defer logging.WhenRequest(ctx, "CreatePaymentHandler", cmd, err)
+
 	link, err := c.processor.CreatePaymentLink(ctx, cmd.Order)
 	if err != nil {
 		return "", err
 	}
-	logrus.Infof("create payment link for order: %s, payment link: %s", cmd.Order.ID, link)
 	// 更新新订单的状态和link
 	newOrder := &orderpb.Order{
 		ID:          cmd.Order.ID,

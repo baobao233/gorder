@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"github.com/baobao233/gorder/common/handler/redis"
+	"github.com/baobao233/gorder/common/logging"
 	"github.com/baobao233/gorder/stock/entity"
 	"github.com/baobao233/gorder/stock/infrastructure/integration"
 	"github.com/pkg/errors"
@@ -60,7 +61,7 @@ func (c checkIfItemsInStockQuery) Handle(ctx context.Context, query CheckIfItems
 	}
 	defer func() {
 		if err := unlock(ctx, getLockKey(query)); err != nil {
-			logrus.Warnf("redis unlock failed, err=%v", err)
+			logging.Warnf(ctx, nil, "redis unlock failed, err=%v", err)
 		}
 	}()
 	if err := c.checkStock(ctx, query.Items); err != nil {
