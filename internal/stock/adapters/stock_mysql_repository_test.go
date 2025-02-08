@@ -3,7 +3,7 @@ package adapters
 import (
 	"context"
 	"fmt"
-	"github.com/baobao233/gorder/stock/entity"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/stock/infrastructure/persistent"
 	"github.com/baobao233/gorder/stock/infrastructure/persistent/builder"
 	"github.com/spf13/viper"

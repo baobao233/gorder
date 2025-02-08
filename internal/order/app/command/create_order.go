@@ -3,9 +3,9 @@ package command
 import (
 	"context"
 	"fmt"
+	"github.com/baobao233/gorder/common/convertor"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/logging"
-	"github.com/baobao233/gorder/order/convertor"
-	"github.com/baobao233/gorder/order/entity"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/status"

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/tracing"
 
-	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
 )
@@ -27,7 +27,7 @@ const (
 	successURL = "http://localhost:8282/success"
 )
 
-func (s StripeProcessor) CreatePaymentLink(ctx context.Context, order *orderpb.Order) (string, error) {
+func (s StripeProcessor) CreatePaymentLink(ctx context.Context, order *entity.Order) (string, error) {
 	// 使用全局的 tracer，不然重新定义 tracer 的话会把同一条链路中的别的 tracer 覆盖掉
 	_, span := tracing.Start(ctx, "stripe_processor.create_payment_link")
 	defer span.End()

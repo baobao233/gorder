@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/baobao233/gorder/common/broker"
-	"github.com/baobao233/gorder/common/genproto/orderpb"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/logging"
 	"github.com/baobao233/gorder/payment/app"
 	"github.com/baobao233/gorder/payment/app/command"
@@ -69,7 +69,7 @@ func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Que
 		}
 	}()
 
-	o := &orderpb.Order{}
+	o := &entity.Order{}
 	if err = json.Unmarshal(msg.Body, o); err != nil {
 		err = errors.Wrap(err, "failed to unmarshall msg to order")
 		return

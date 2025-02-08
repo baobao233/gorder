@@ -2,9 +2,9 @@ package query
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/handler/redis"
 	"github.com/baobao233/gorder/common/logging"
-	"github.com/baobao233/gorder/stock/entity"
 	"github.com/baobao233/gorder/stock/infrastructure/integration"
 	"github.com/pkg/errors"
 	"strings"

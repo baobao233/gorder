@@ -2,7 +2,7 @@ package order
 
 import (
 	"fmt"
-	"github.com/baobao233/gorder/order/entity"
+	"github.com/baobao233/gorder/common/entity"
 
 	"github.com/pkg/errors"
 	"github.com/stripe/stripe-go/v81"

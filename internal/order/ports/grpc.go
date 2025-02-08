@@ -2,7 +2,7 @@ package ports
 
 import (
 	"context"
-	"github.com/baobao233/gorder/order/convertor"
+	"github.com/baobao233/gorder/common/convertor"
 
 	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/baobao233/gorder/order/app"
@@ -19,6 +19,7 @@ import (
 /*
 该文件是为了提供 grpc 服务，实现OrderServiceServer接口，有 orderGRPC 的原因是 stripe 需要返回 payLink 然后调用 order 去更新 order 的信息
 */
+
 type GRPCServer struct {
 	app app.Application
 }
@@ -47,7 +48,13 @@ func (G GRPCServer) GetOrder(ctx context.Context, request *orderpb.GetOrderReque
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	return convertor.NewOrderConvertor().EntityToProto(o), nil
+	return &orderpb.Order{
+		ID:          o.ID,
+		CustomerID:  o.CustomerID,
+		Status:      o.Status,
+		Items:       convertor.NewItemConvertor().EntitiesToProtos(o.Items),
+		PaymentLink: o.PaymentLink,
+	}, nil
 }
 
 func (G GRPCServer) UpdateOrder(ctx context.Context, request *orderpb.Order) (_ *emptypb.Empty, err error) {

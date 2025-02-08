@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/baobao233/gorder/common/decorator"
+	"github.com/baobao233/gorder/common/entity"
 	domain "github.com/baobao233/gorder/stock/domain/stock"
-	"github.com/baobao233/gorder/stock/entity"
 	"github.com/sirupsen/logrus"
 )
 

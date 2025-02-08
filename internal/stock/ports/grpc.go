@@ -2,8 +2,8 @@ package ports
 
 import (
 	context "context"
+	"github.com/baobao233/gorder/common/convertor"
 	"github.com/baobao233/gorder/common/tracing"
-	"github.com/baobao233/gorder/stock/convertor"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 

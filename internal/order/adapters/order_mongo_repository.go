@@ -3,9 +3,9 @@ package adapters
 import (
 	"context"
 	_ "github.com/baobao233/gorder/common/config"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/logging"
 	domain "github.com/baobao233/gorder/order/domain/order"
-	"github.com/baobao233/gorder/order/entity"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"

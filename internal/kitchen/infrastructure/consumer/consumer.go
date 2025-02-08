@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/baobao233/gorder/common/broker"
+	"github.com/baobao233/gorder/common/convertor"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
 	"github.com/baobao233/gorder/common/logging"
 	"github.com/pkg/errors"
@@ -20,14 +22,6 @@ type OrderService interface {
 
 type Consumer struct {
 	orderGRPC OrderService
-}
-
-type Order struct {
-	ID          string
-	CustomerID  string
-	Status      string
-	PaymentLink string
-	Items       []*orderpb.Item
 }
 
 func NewConsumer(orderGRPC OrderService) *Consumer {
@@ -84,7 +78,7 @@ func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Que
 		}
 	}()
 
-	o := &Order{}
+	o := &entity.Order{}
 	if err = json.Unmarshal(msg.Body, o); err != nil {
 		err = errors.Wrap(err, "failed to unmarshall msg to order")
 		return
@@ -101,7 +95,7 @@ func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Que
 		ID:          o.ID,
 		CustomerID:  o.CustomerID,
 		Status:      "ready",
-		Items:       o.Items,
+		Items:       convertor.NewItemConvertor().EntitiesToProtos(o.Items),
 		PaymentLink: o.PaymentLink,
 	}); err != nil {
 		logging.Errorf(ctx, nil, "error updating order||orderID=%s||err=%v", o.ID, err)
@@ -114,7 +108,7 @@ func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Que
 	span.AddEvent("kitchen.order.finished.updated")
 }
 
-func cook(ctx context.Context, o *Order) {
+func cook(ctx context.Context, o *entity.Order) {
 	logrus.WithContext(ctx).Printf(fmt.Sprintf("cooking order, orderID: %s", o.ID))
 	time.Sleep(5 * time.Second)
 	logrus.WithContext(ctx).Printf("order %s done!", o.ID)

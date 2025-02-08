@@ -2,7 +2,7 @@ package adapters
 
 import (
 	"context"
-	"github.com/baobao233/gorder/stock/entity"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/stock/infrastructure/persistent"
 	"github.com/baobao233/gorder/stock/infrastructure/persistent/builder"
 	"github.com/pkg/errors"

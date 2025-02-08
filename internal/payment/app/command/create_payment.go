@@ -2,15 +2,16 @@ package command
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/convertor"
 	"github.com/baobao233/gorder/common/decorator"
-	"github.com/baobao233/gorder/common/genproto/orderpb"
+	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/logging"
 	"github.com/baobao233/gorder/payment/domain"
 	"github.com/sirupsen/logrus"
 )
 
 type CreatePayment struct {
-	Order *orderpb.Order
+	Order *entity.Order
 }
 
 // CreatePaymentHandler 输入是 CreatePayment， 输出是支付链接 string
@@ -30,14 +31,14 @@ func (c createPaymentHandler) Handle(ctx context.Context, cmd CreatePayment) (st
 		return "", err
 	}
 	// 更新新订单的状态和link
-	newOrder := &orderpb.Order{
+	newOrder := &entity.Order{
 		ID:          cmd.Order.ID,
 		CustomerID:  cmd.Order.CustomerID,
 		Status:      "waiting_for_payment",
 		Items:       cmd.Order.Items,
 		PaymentLink: link,
 	}
-	err = c.orderGRPC.UpdateOrder(ctx, newOrder)
+	err = c.orderGRPC.UpdateOrder(ctx, convertor.NewOrderConvertor().EntityToProto(newOrder))
 
 	return link, err
 }
