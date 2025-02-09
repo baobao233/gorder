@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/entity"
 )
 
 type InMemProcessor struct {

@@ -17,7 +17,7 @@ type QueryHandler[Q, R any] interface {
 // ApplyQueryDecorators 把 logger 传入到 QueryHandler 中,这样子我们就可以得到一个可以记录 log 的 QueryHandler，
 // 然后再在 base 中可以再传一个 queryMetricDecorator，因为queryMetricDecorator实现了 handle 所以可以直接传入，
 // 从而在一个函数中传入了两个装饰器
-func ApplyQueryDecorators[H, R any](handler QueryHandler[H, R], logger *logrus.Entry, metricClient MetricClient) QueryHandler[H, R] {
+func ApplyQueryDecorators[H, R any](handler QueryHandler[H, R], logger *logrus.Logger, metricClient MetricClient) QueryHandler[H, R] {
 	return queryLoggingDecorator[H, R]{
 		logger: logger,
 		base: queryMetricsDecorator[H, R]{

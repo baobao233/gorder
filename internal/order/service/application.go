@@ -47,16 +47,15 @@ func newApplication(_ context.Context, stockGRPC query.StockService, channel *am
 	// orderRepo := adapters.NewMemoryOrderRepository()
 	mongoClient := newMongoClient()
 	orderRepo := adapters.NewOrderRepositoryMongo(mongoClient)
-	logger := logrus.NewEntry(logrus.StandardLogger())
 	metricsClient := metrics.TodoMetrics{}
 	// 在 CQRS 中肯定是需要用到存储的，所以我们需要把 orderRepo 注入到这里面去，比如有一个 Queries 我们就可以 New 一个东西然后把 orderRepo 传进去实现依赖倒置
 	return app.Application{
 		Commands: app.Commands{
-			CreateOrder: command.NewCreateOrderHandler(orderRepo, stockGRPC, channel, logger, metricsClient), // 注入一个支持创建订单的 handler
-			UpdateOrder: command.NewUpdateOrderHandler(orderRepo, logger, metricsClient),                     // 注入一个支持更新订单的 handler
+			CreateOrder: command.NewCreateOrderHandler(orderRepo, stockGRPC, channel, logrus.StandardLogger(), metricsClient), // 注入一个支持创建订单的 handler
+			UpdateOrder: command.NewUpdateOrderHandler(orderRepo, logrus.StandardLogger(), metricsClient),                     // 注入一个支持更新订单的 handler
 		},
 		Queries: app.Queries{
-			GetCustomerOrder: query.NewGetCustomerOrderHandler(orderRepo, logger, metricsClient), // 注入了一个支持查询的 handler
+			GetCustomerOrder: query.NewGetCustomerOrderHandler(orderRepo, logrus.StandardLogger(), metricsClient), // 注入了一个支持查询的 handler
 		},
 	}
 }

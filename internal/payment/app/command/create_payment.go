@@ -31,24 +31,16 @@ func (c createPaymentHandler) Handle(ctx context.Context, cmd CreatePayment) (st
 		return "", err
 	}
 	// 更新新订单的状态和link
-	newOrder := &entity.Order{
-		ID:          cmd.Order.ID,
-		CustomerID:  cmd.Order.CustomerID,
-		Status:      "waiting_for_payment",
-		Items:       cmd.Order.Items,
-		PaymentLink: link,
+	newOrder, err := entity.NewValidOrder(cmd.Order.ID, cmd.Order.CustomerID, "waiting_for_payment", link, cmd.Order.Items)
+	if err != nil {
+		return "", err
 	}
 	err = c.orderGRPC.UpdateOrder(ctx, convertor.NewOrderConvertor().EntityToProto(newOrder))
 
 	return link, err
 }
 
-func NewCreatePaymentHandler(
-	processor domain.Processor,
-	orderGRPC OrderService,
-	logger *logrus.Entry,
-	metricsClient decorator.MetricClient,
-) CreatePaymentHandler {
+func NewCreatePaymentHandler(processor domain.Processor, orderGRPC OrderService, logger *logrus.Logger, metricsClient decorator.MetricClient) CreatePaymentHandler {
 	return decorator.ApplyCommandDecorators[CreatePayment, string](
 		createPaymentHandler{processor: processor, orderGRPC: orderGRPC},
 		logger, metricsClient)

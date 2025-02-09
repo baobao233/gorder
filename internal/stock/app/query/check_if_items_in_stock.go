@@ -33,7 +33,7 @@ type checkIfItemsInStockQuery struct {
 func NewCheckIfItemsInStockHandler(
 	stockRepo doamin.Repository,
 	stripeAPI *integration.StripeAPI,
-	logger *logrus.Entry,
+	logger *logrus.Logger,
 	metricsClient decorator.MetricClient,
 ) CheckIfItemsInStockHandler {
 	if stockRepo == nil {
@@ -73,11 +73,7 @@ func (c checkIfItemsInStockQuery) Handle(ctx context.Context, query CheckIfItems
 		if err != nil || priceID == "" {
 			return nil, err
 		}
-		res = append(res, &entity.Item{
-			ID:       item.ID,
-			Quantity: item.Quantity,
-			PriceID:  priceID,
-		})
+		res = append(res, entity.NewItem(item.ID, "", item.Quantity, priceID))
 	}
 	return res, nil
 }
@@ -144,10 +140,11 @@ func (c checkIfItemsInStockQuery) checkStock(ctx context.Context, query []*entit
 			for _, e := range existing {
 				for _, q := range query {
 					if e.ID == q.ID {
-						newItems = append(newItems, &entity.ItemWithQuantity{
-							ID:       e.ID,
-							Quantity: e.Quantity - q.Quantity,
-						})
+						iq, err := entity.NewValidItemWithQuantity(e.ID, e.Quantity-q.Quantity)
+						if err != nil {
+							return nil, err
+						}
+						newItems = append(newItems, iq)
 					}
 				}
 			}

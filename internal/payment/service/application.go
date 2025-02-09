@@ -29,11 +29,10 @@ func NewApplication(ctx context.Context) (app.Application, func()) {
 
 // 都依赖于接口，因此参数应该是接口
 func newApplication(_ context.Context, grpc command.OrderService, processor domain.Processor) app.Application {
-	logger := logrus.NewEntry(logrus.StandardLogger())
 	metricsClient := metrics.TodoMetrics{}
 	return app.Application{
 		Command: app.Commands{
-			CreatePayment: command.NewCreatePaymentHandler(processor, grpc, logger, metricsClient),
+			CreatePayment: command.NewCreatePaymentHandler(processor, grpc, logrus.StandardLogger(), metricsClient),
 		},
 	}
 }
