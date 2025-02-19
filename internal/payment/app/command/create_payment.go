@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"github.com/baobao233/gorder/common/consts"
 	"github.com/baobao233/gorder/common/convertor"
 	"github.com/baobao233/gorder/common/decorator"
 	"github.com/baobao233/gorder/common/entity"
@@ -31,7 +32,13 @@ func (c createPaymentHandler) Handle(ctx context.Context, cmd CreatePayment) (st
 		return "", err
 	}
 	// 更新新订单的状态和link
-	newOrder, err := entity.NewValidOrder(cmd.Order.ID, cmd.Order.CustomerID, "waiting_for_payment", link, cmd.Order.Items)
+	newOrder, err := entity.NewValidOrder(
+		cmd.Order.ID,
+		cmd.Order.CustomerID,
+		consts.OrderStatusWaitingForPayment,
+		link,
+		cmd.Order.Items,
+	)
 	if err != nil {
 		return "", err
 	}

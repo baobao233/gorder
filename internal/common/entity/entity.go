@@ -28,7 +28,7 @@ func (it Item) validate() (err error) {
 		invalidFields = append(invalidFields, "PriceID")
 	}
 	if len(invalidFields) > 0 {
-		return fmt.Errorf("item=%v invalid, empty fields=[%s]", strings.Join(invalidFields, ","))
+		return fmt.Errorf("item validate failed||item=%v invalid, empty fields=[%s]", strings.Join(invalidFields, ","))
 	}
 	return nil
 }
@@ -59,7 +59,7 @@ func (iq ItemWithQuantity) validate() (err error) {
 		invalidFields = append(invalidFields, "ID")
 	}
 	if len(invalidFields) > 0 {
-		return errors.New(strings.Join(invalidFields, ","))
+		return errors.New("itemWithQuantity validate failed " + strings.Join(invalidFields, ","))
 	}
 	return nil
 }

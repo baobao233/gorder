@@ -83,7 +83,7 @@ func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Que
 		Order: o,
 		UpdateFn: func(ctx context.Context, order *domain.Order) (*domain.Order, error) {
 			// 校验是否订单状态已经改变，如果没有改变则返回错误
-			if err := order.IsPaid(); err != nil {
+			if err := order.UpdateOrderStatus(o.Status); err != nil {
 				return nil, err
 			}
 			return order, nil

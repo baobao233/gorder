@@ -69,11 +69,11 @@ func (c checkIfItemsInStockQuery) Handle(ctx context.Context, query CheckIfItems
 	}
 	var res []*entity.Item
 	for _, item := range query.Items {
-		priceID, err := c.stripeAPI.GetPriceByProductID(ctx, item.ID) // 需要确保 item.ID和 stripe 中的 ProductID 相对应
-		if err != nil || priceID == "" {
+		p, err := c.stripeAPI.GetProductByID(ctx, item.ID) // 需要确保 item.ID和 stripe 中的 ProductID 相对应
+		if err != nil {
 			return nil, err
 		}
-		res = append(res, entity.NewItem(item.ID, "", item.Quantity, priceID))
+		res = append(res, entity.NewItem(item.ID, p.Name, item.Quantity, p.DefaultPrice.ID))
 	}
 	return res, nil
 }

@@ -11,7 +11,7 @@ type Repository interface {
 	Update(
 		ctx context.Context,
 		o *Order,
-		updateFunc func(context.Context, *Order) (*Order, error),
+		updateFunc func(context.Context, *Order) (*Order, error), // 传入一个需要被更新状态的 order， 返回一个更新状态后的 order，更新的动作由调用 GRPC 的服务完成
 	) error
 }
 

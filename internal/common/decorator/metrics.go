@@ -24,8 +24,10 @@ func (q queryMetricsDecorator[C, R]) Handle(ctx context.Context, cmd C) (res R, 
 		// 把耗时指标传进 Metric 中，并且采用唯一一次查询的标识
 		q.client.Inc(fmt.Sprintf("queries.%s.duration", actionName), int(end.Seconds()))
 		if err == nil {
+			// 记录成功请求次数
 			q.client.Inc(fmt.Sprintf("queries.%s.success", actionName), 1)
 		} else {
+			// 记录失败请求次数
 			q.client.Inc(fmt.Sprintf("queries.%s.failure", actionName), 1)
 		}
 	}()

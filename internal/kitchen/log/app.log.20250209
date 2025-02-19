@@ -1,10 +1,6 @@
-{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 14:56:04"}
-{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 15:28:54"}
-{"level":"info","msg":"Discovered 1 instance of order, addrs = [127.0.0.1:5002]","time":"2025-02-09 15:28:54"}
-{"level":"info","msg":"to exit, press ctrl+c","time":"2025-02-09 15:28:54"}
-{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 15:57:08"}
-{"level":"info","msg":"Discovered 1 instance of order, addrs = [127.0.0.1:5002]","time":"2025-02-09 15:57:08"}
-{"level":"info","msg":"to exit, press ctrl+c","time":"2025-02-09 15:57:08"}
-{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 16:03:42"}
-{"level":"info","msg":"Discovered 1 instance of order, addrs = [127.0.0.1:5002]","time":"2025-02-09 16:03:42"}
-{"level":"info","msg":"to exit, press ctrl+c","time":"2025-02-09 16:03:42"}
+{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 16:30:30"}
+{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 16:31:37"}
+{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 16:31:57"}
+{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-09 16:33:32"}
+{"level":"info","msg":"Discovered 1 instance of order, addrs = [127.0.0.1:5002]","time":"2025-02-09 16:33:32"}
+{"level":"info","msg":"to exit, press ctrl+c","time":"2025-02-09 16:33:32"}

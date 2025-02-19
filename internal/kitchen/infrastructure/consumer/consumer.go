@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/baobao233/gorder/common/broker"
+	"github.com/baobao233/gorder/common/consts"
 	"github.com/baobao233/gorder/common/convertor"
 	"github.com/baobao233/gorder/common/entity"
 	"github.com/baobao233/gorder/common/genproto/orderpb"
@@ -94,7 +95,7 @@ func (c *Consumer) handleMessage(ch *amqp.Channel, msg amqp.Delivery, q amqp.Que
 	if err = c.orderGRPC.UpdateOrder(ctx, &orderpb.Order{
 		ID:          o.ID,
 		CustomerID:  o.CustomerID,
-		Status:      "ready",
+		Status:      consts.OrderStatusReady,
 		Items:       convertor.NewItemConvertor().EntitiesToProtos(o.Items),
 		PaymentLink: o.PaymentLink,
 	}); err != nil {

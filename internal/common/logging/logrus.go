@@ -23,7 +23,7 @@ import (
 func Init() {
 	SetFormatter(logrus.StandardLogger())
 	logrus.SetLevel(logrus.DebugLevel) // 开发环境中设置为 debug 模式
-	setOutput(logrus.StandardLogger())
+	//setOutput(logrus.StandardLogger())
 	logrus.AddHook(&traceHook{})
 }
 
@@ -35,12 +35,6 @@ func setOutput(logger *logrus.Logger) {
 	)
 
 	if err := os.MkdirAll(folder, 0750); err != nil && !os.IsExist(err) {
-		if os.IsExist(err) {
-			err = os.RemoveAll(folder)
-			if err != nil {
-				panic(err)
-			}
-		}
 		panic(err)
 	}
 	file, err := os.OpenFile(folder+filePath, os.O_CREATE|os.O_RDWR, 0755)
@@ -97,9 +91,9 @@ func SetFormatter(logger *logrus.Logger) {
 	// 如果是在本地模式中，强制格式化
 	if isLocal, _ := strconv.ParseBool(os.Getenv("LOCAL_ENV")); isLocal {
 		logrus.SetFormatter(&prefixed.TextFormatter{
-			//ForceColors:     true,
-			//ForceFormatting: true,
-			//TimestampFormat: time.RFC3339,
+			ForceColors:     true,
+			ForceFormatting: true,
+			TimestampFormat: time.RFC3339,
 		})
 	}
 }

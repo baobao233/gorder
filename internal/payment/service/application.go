@@ -29,7 +29,10 @@ func NewApplication(ctx context.Context) (app.Application, func()) {
 
 // 都依赖于接口，因此参数应该是接口
 func newApplication(_ context.Context, grpc command.OrderService, processor domain.Processor) app.Application {
-	metricsClient := metrics.TodoMetrics{}
+	metricsClient := metrics.NewPrometheusMetricsClient(&metrics.PrometheusMetricsConfig{
+		Host:        viper.GetString("payment.metrics_export_addr"),
+		ServiceName: viper.GetString("payment.service-name"),
+	})
 	return app.Application{
 		Command: app.Commands{
 			CreatePayment: command.NewCreatePaymentHandler(processor, grpc, logrus.StandardLogger(), metricsClient),

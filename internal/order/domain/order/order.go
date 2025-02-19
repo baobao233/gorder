@@ -2,10 +2,10 @@ package order
 
 import (
 	"fmt"
+	"github.com/baobao233/gorder/common/consts"
 	"github.com/baobao233/gorder/common/entity"
-
 	"github.com/pkg/errors"
-	"github.com/stripe/stripe-go/v81"
+	"slices"
 )
 
 // Order Aggregate
@@ -15,6 +15,27 @@ type Order struct {
 	Status      string
 	PaymentLink string
 	Items       []*entity.Item
+}
+
+func (o *Order) UpdateOrderStatus(to string) error {
+	if !o.isValidStatusTransaction(to) {
+		return fmt.Errorf("cannot tramsit from %s to %s", o.Status, to)
+	}
+	o.Status = to
+	return nil
+}
+
+func (o *Order) UpdatePaymentLink(paymentLink string) error {
+	//if paymentLink == "" {
+	//	return errors.New("cannot update empty paymentLink")
+	//}
+	o.PaymentLink = paymentLink
+	return nil
+}
+
+func (o *Order) UpdateItems(items []*entity.Item) error {
+	o.Items = items
+	return nil
 }
 
 // NewOrder 创建代码中流通的 order，也就是 domain.Order
@@ -52,14 +73,20 @@ func NewPendingOrder(customerID string, items []*entity.Item) (*Order, error) {
 	// ps: payment可以为空，因为的订单已开始创建的时候就是 paymentLink 为空的
 	return &Order{
 		CustomerID: customerID,
-		Status:     "pending",
+		Status:     consts.OrderStatusPending,
 		Items:      items,
 	}, nil
 }
 
-func (o *Order) IsPaid() error {
-	if o.Status == string(stripe.CheckoutSessionPaymentStatusPaid) {
-		return nil
+func (o *Order) isValidStatusTransaction(to string) bool {
+	switch o.Status {
+	case consts.OrderStatusPending:
+		return slices.Contains([]string{consts.OrderStatusWaitingForPayment}, to)
+	case consts.OrderStatusWaitingForPayment:
+		return slices.Contains([]string{consts.OrderStatusPaid}, to)
+	case consts.OrderStatusPaid:
+		return slices.Contains([]string{consts.OrderStatusReady}, to)
+	default:
+		return false
 	}
-	return fmt.Errorf("order status not paid, order id= %s, order status = %s", o.ID, o.Status)
 }

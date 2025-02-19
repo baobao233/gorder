@@ -1,3 +1,6 @@
 {"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-10 11:31:26"}
 {"level":"info","msg":"Discovered 1 instance of order, addrs = [127.0.0.1:5002]","time":"2025-02-10 11:31:26"}
 {"level":"info","msg":"to exit, press ctrl+c","time":"2025-02-10 11:31:26"}
+{"level":"info","msg":"waiting for order grpc client, timeout: 10 seconds","time":"2025-02-10 11:45:15"}
+{"level":"info","msg":"Discovered 1 instance of order, addrs = [127.0.0.1:5002]","time":"2025-02-10 11:45:15"}
+{"level":"info","msg":"to exit, press ctrl+c","time":"2025-02-10 11:45:15"}

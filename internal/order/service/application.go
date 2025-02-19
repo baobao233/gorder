@@ -47,7 +47,10 @@ func newApplication(_ context.Context, stockGRPC query.StockService, channel *am
 	// orderRepo := adapters.NewMemoryOrderRepository()
 	mongoClient := newMongoClient()
 	orderRepo := adapters.NewOrderRepositoryMongo(mongoClient)
-	metricsClient := metrics.TodoMetrics{}
+	metricsClient := metrics.NewPrometheusMetricsClient(&metrics.PrometheusMetricsConfig{
+		Host:        viper.GetString("order.metrics_export_addr"),
+		ServiceName: viper.GetString("order.service-name"),
+	})
 	// 在 CQRS 中肯定是需要用到存储的，所以我们需要把 orderRepo 注入到这里面去，比如有一个 Queries 我们就可以 New 一个东西然后把 orderRepo 传进去实现依赖倒置
 	return app.Application{
 		Commands: app.Commands{
